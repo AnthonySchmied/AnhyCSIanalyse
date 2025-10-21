@@ -7,75 +7,7 @@ import ast
 import re
 
 
-class Recording:
-    def __init__(self, session, path: Path, df=None):
-        self.session = session
-        self._path = path
-        self.df = df
-        self.parse_sender_receiver()
-        self.reset()
-        self._no_tx_counter = None
-        if df is None:
-            self.read_csv_santizied()
-
-    def __str__(self):
-        to_return = "------------------------------\n"
-        if not self.df.empty:
-            to_return += f"{self._path} \n \
-                sender: {self._name_sender} [{self._mac_sender}] \n \
-                receiver: {self._name_receiver} [{self._mac_receiver}] \n \
-                duration: {self.get_duration(as_str=True)} \t\t\t frequencies: {self.get_frequencies()}\n \
-                tx_packets: {self.get_tx_packets_count(as_str=True)} \t tx_packets_lost: {self.get_tx_packets_lost(as_str=True)} \t tx_lost_ratio: {self.get_tx_lost_ratio(as_str=True)}\n \
-                rx_packets: {self.get_rx_packets_count(as_str=True)} \t rx_packets_lost: {self.get_rx_packets_lost(as_str=True)} \t rx_lost_ratio: {self.get_rx_lost_ratio(as_str=True)}\n \
-                mean_rx: {ſelf.get_mean_rx_interval(as_str=True)} \t meadian_rx: {self.get_median_rx_intervall(as_str=True)} \n \
-                min_rx_intervals: {self.get_min_rx_interval(as_str=True)} \n \
-                max_rx_intervals: {self.get_max_rx_interval(as_str=True)} \n \
-                mean_tx: {ſelf.get_mean_tx_interval(as_str=True)} \t meadian_tx: {self.get_median_tx_intervall(as_str=True)} \n"  # min_tx_intervals: {ſelf.get_min_tx_interval(as_str=True)} \n \
-            # max_tx_intervals: {ſelf.get_max_tx_interval(as_str=True)} \n"
-            if self._subrecordings_split_by_freq is not None:
-                to_return += f"\t\t num_subrecordings: {len(self._subrecordings_split_by_freq)}\n"
-                for rec in self._subrecordings_split_by_freq:
-                    to_return += f"{str(rec)}"
-                to_return += "------------------------------\n"
-
-            else:
-                to_return += "------------------------------\n"
-
-        else:
-            to_return += f"{self._path} empty"
-        return to_return
-
-    def copy(self):
-        """
-        Returns a deep copy of the Recording instance, including a copy of the DataFrame.
-        """
-        df_copy = self.df.copy(deep=True) if self.df is not None else None
-        new_instance = Recording(self.session, self._path, df_copy)
-        # Copy cached/calculated attributes if needed
-        new_instance._duration_ms = copy.deepcopy(self._duration_ms)
-        new_instance._tx_packets_count = copy.deepcopy(self._tx_packets_count)
-        new_instance._tx_packets_lost = copy.deepcopy(self._tx_packets_lost)
-        new_instance._tx_packets_lost_ratio = copy.deepcopy(self._tx_packets_lost_ratio)
-        new_instance._rx_packets_count = copy.deepcopy(self._rx_packets_count)
-        new_instance._rx_packets_lost = copy.deepcopy(self._rx_packets_lost)
-        new_instance._rx_packets_lost_ratio = copy.deepcopy(self._rx_packets_lost_ratio)
-        new_instance._frequencies = copy.deepcopy(self._frequencies)
-        new_instance._mean_tx_interval = copy.deepcopy(self._mean_tx_interval)
-        new_instance._median_tx_interval = copy.deepcopy(self._median_tx_interval)
-        new_instance._max_tx_interval = copy.deepcopy(self._max_tx_interval)
-        new_instance._min_tx_interval = copy.deepcopy(self._min_tx_interval)
-        new_instance._mean_rx_interval = copy.deepcopy(self._mean_rx_interval)
-        new_instance._median_rx_interval = copy.deepcopy(self._median_rx_interval)
-        new_instance._max_rx_interval = copy.deepcopy(self._max_rx_interval)
-        new_instance._min_rx_interval = copy.deepcopy(self._min_rx_interval)
-        if self._subrecordings_split_by_freq is not None:
-            new_instance._subrecordings_split_by_freq = [
-                rec.copy() for rec in self._subrecordings_split_by_freq
-            ]
-        else:
-            new_instance._subrecordings_split_by_freq = None
-        return new_instance
-
+class _InitMinix:
     def reset(self):
         self._duration_ms = None
         self._tx_packets_count = None
@@ -95,7 +27,10 @@ class Recording:
         self._min_rx_interval = None
         self._subrecordings_split_by_freq = None
         self._amplitudes = None
+        self._mean_amplitudes = None
 
+
+class _ReadDataframeMinix:
     def parse_sender_receiver(self):
         m = re.match(
             r"^csi_([0-9a-fA-F]{6})_([^_]+)-([0-9a-fA-F]{6})_([^_]+)\.csv$",
@@ -114,16 +49,9 @@ class Recording:
             self._mac_sender = None
             self._name_sender = None
 
-    def push_id_to_session(
-        self, instance, mac_receiver, name_receiver, mac_sender, name_sender
-    ):
-        self.parent.push_id_to_session(
-            instance, mac_receiver, name_receiver, mac_sender, name_sender
-        )
-
     def read_csv_santizied(self):
         pickle_path = Path(self._path.parent, "." + self._path.stem + ".pkl")
-        
+
         if pickle_path.is_file():
             try:
                 print(f"Loading from pickle: {pickle_path}")
@@ -182,65 +110,8 @@ class Recording:
 
             self.df.to_pickle(pickle_path)
 
-    # ========== Tree Traversal ==========
 
-    def get_senders_name_mac(self):
-        return (self._name_sender, self._mac_sender)
-
-    def get_receivers_name_mac(self):
-        return (self._name_receiver, self._mac_receiver)
-
-    def get_recording(self, sender_mac=None, receiver_mac=None, freqs=None):
-        to_return = []
-        self.get_frequencies()
-        if len(self._frequencies) > 1:
-            self.split_by_frequency()
-            [
-                to_return.extend(rec.get_recording(sender_mac, receiver_mac, freqs))
-                for rec in self._subrecordings_split_by_freq
-            ]
-        else:
-            if sender_mac is not None and receiver_mac is not None:
-                if sender_mac == self._mac_sender and receiver_mac == self._mac_receiver:
-                    if self._frequencies[0] in freqs:
-                        to_return.append(self)
-                return to_return
-            elif receiver_mac is None and sender_mac == self._mac_sender:
-                if self._frequencies[0] in freqs:
-                    to_return.append(self)
-                return to_return
-            elif sender_mac is None and receiver_mac == self._mac_receiver:
-                if self._frequencies[0] in freqs:
-                    to_return.append(self)
-                
-
-
-            # if sender_mac is not None and receiver_mac is not None and self._mac_sender == sender_mac and self._mac_receiver == receiver_mac:
-            #     to_return.append(self)
-            # elif (
-            #     receiver_mac is None and
-            #     self._mac_sender == sender_mac
-            #     and self._frequencies[0] in freqs
-            # ):
-            #     to_return.append(self)
-            # elif (
-            #     sender_mac is None and
-            #     self._mac_receiver == receiver_mac
-            #     and self._frequencies[0] in freqs
-            # ):
-            #     to_return.append(self)
-        
-        
-        return to_return
-
-    def split_and_cut_subrecordings(self, cut_first_ms, total_length):
-        self.split_by_frequency()
-        for sub_rec in self.get_subrecordings():
-            sub_rec.cut_length_ms(cut_first_ms, total_length)
-            # sub_rec.remove_first_ms(cut_first_ms)
-            # sub_rec.cut_on_end_to_length_ms(total_length)
-
-    # ========== Statistics ==========
+class _MetaDataMinix:
     def get_duration(self, as_str=False):
         if len(self.df) > 2:
             if self._duration_ms is None:
@@ -430,6 +301,90 @@ class Recording:
             self._frequencies = frequencies
         return self._frequencies
 
+    def get_amplitudes(self):
+        if self._amplitudes is None and not self.df.empty:
+            self._amplitudes = {}
+            subcarry_count = len(self.df.get("amplitude")[0])
+            for subcarry_index in range(subcarry_count):
+                self._amplitudes[subcarry_index + 1] = []
+            for i in range(len(self.df)):
+                for subcarry_index in range(subcarry_count):
+                    if not subcarry_index + 1 in self._remove_subcarrier_id:
+                        self._amplitudes[subcarry_index + 1].append(
+                            self.df.get("amplitude")[i][subcarry_index]
+                        )
+        return self._amplitudes
+
+    def get_mean_amplitude_per_id(self):
+        if self._mean_amplitudes is None and not self.df.empty:
+            if self._amplitudes is None:
+                self.get_amplitudes()
+            self._mean_amplitudes = {}
+            for subcarry_index, values in self._amplitudes.items():
+                if not subcarry_index in self._remove_subcarrier_id:
+                    self._mean_amplitudes[subcarry_index] = float(np.mean(values))
+        return self._mean_amplitudes
+
+    def get_datetime_name(self):
+        if not self.session is None:
+            return self.session._datetime, self.session._name
+        return None, None
+
+
+class _TreeTraversalMinix:
+
+    def get_recording(self, sender_mac=None, receiver_mac=None, freqs=None):
+        to_return = []
+        self.get_frequencies()
+        if len(self._frequencies) > 1:
+            self.split_by_frequency()
+            [
+                to_return.extend(rec.get_recording(sender_mac, receiver_mac, freqs))
+                for rec in self._subrecordings_split_by_freq
+            ]
+        else:
+            if sender_mac is not None and receiver_mac is not None:
+                if (
+                    sender_mac == self._mac_sender
+                    and receiver_mac == self._mac_receiver
+                ):
+                    if self._frequencies[0] in freqs:
+                        to_return.append(self)
+                return to_return
+            elif receiver_mac is None and sender_mac == self._mac_sender:
+                if self._frequencies[0] in freqs:
+                    to_return.append(self)
+                return to_return
+            elif sender_mac is None and receiver_mac == self._mac_receiver:
+                if self._frequencies[0] in freqs:
+                    to_return.append(self)
+            elif sender_mac is None and receiver_mac is None:
+                if self._frequencies[0] in freqs:
+                    to_return.append(self)
+        return to_return
+
+    def get_subrecordings(self):
+        return (
+            self._subrecordings_split_by_freq
+            if self._subrecordings_split_by_freq is not None
+            else []
+        )
+
+    def get_subrecording_by_freq(self, freq):
+        if self._subrecordings_split_by_freq is not None:
+            for rec in self._subrecordings_split_by_freq:
+                if freq in rec.get_frequencies():
+                    return rec
+
+    def get_senders_name_mac(self):
+        return (self._name_sender, self._mac_sender)
+
+    def get_receivers_name_mac(self):
+        return (self._name_receiver, self._mac_receiver)
+
+
+class _AlterDataframeMinix:
+
     def split_by_frequency(self, drop_first_last=True):
         if (
             not self.df.empty
@@ -448,6 +403,7 @@ class Recording:
                         self._path,
                         self.df[split_begin_index : idx - 1].copy(),
                     )
+                    sub_rec.remove_subcarrier(self._remove_subcarrier_id)
                     self._subrecordings_split_by_freq.append(sub_rec)
                     split_begin_index = idx
                     frequencies.append(freq)
@@ -457,48 +413,77 @@ class Recording:
                 self._path,
                 self.df[split_begin_index : len(self.df)].copy(),
             )
+            sub_rec.remove_subcarrier(self._remove_subcarrier_id)
             self._subrecordings_split_by_freq.append(sub_rec)
             if len(self._subrecordings_split_by_freq) < 1:
                 self._subrecordings_split_by_freq = []
             elif drop_first_last and len(self._subrecordings_split_by_freq) >= 2:
                 self._subrecordings_split_by_freq.pop(0)
                 self._subrecordings_split_by_freq.pop()
-        # else:
-        #     self._subrecordings_split_by_freq = None
-
-    def get_subrecordings(self):
-        return (
-            self._subrecordings_split_by_freq
-            if self._subrecordings_split_by_freq is not None
-            else []
-        )
-
-    def get_subrecording_by_freq(self, freq):
-        if self._subrecordings_split_by_freq is not None:
-            for rec in self._subrecordings_split_by_freq:
-                if freq in rec.get_frequencies():
-                    return rec
 
     def remove_subcarrier(self, index: list):
-        pass
+        self._remove_subcarrier_id.extend(index)
+        if self._subrecordings_split_by_freq is not None:
+            for rec in self._subrecordings_split_by_freq:
+                rec.remove_subcarrier(index)
 
     def cut_length_ms(self, front_padding_ms, length_ms):
         if not self.df.empty and self.get_duration() > front_padding_ms + length_ms:
             time_slice_begin = self.df.iloc[0]["rx_time"] + front_padding_ms * 1e3
             time_slice_end = time_slice_begin + length_ms * 1e3
-            df_cut_front = self.df[self.df["rx_time"] >= time_slice_begin].reset_index(drop=True)
-            self.df = df_cut_front[df_cut_front["rx_time"] <= time_slice_end].reset_index(drop=True)
+            df_cut_front = self.df[self.df["rx_time"] >= time_slice_begin].reset_index(
+                drop=True
+            )
+            self.df = df_cut_front[
+                df_cut_front["rx_time"] <= time_slice_end
+            ].reset_index(drop=True)
             self.reset()
 
-    def get_amplitudes(self):
-        if self._amplitudes is None and not int(self.df.iloc[-1]["tx_counter"]) == 0:
-            self._amplitudes = {}
-            subcarry_count = len(self.df.get("amplitude")[0])
-            for subcarry_index in range(subcarry_count):
-                self._amplitudes[subcarry_index+1] = []
-            for i in range(len(self.df)):
-                for subcarry_index in range(subcarry_count):
-                    self._amplitudes[subcarry_index+1].append(
-                        self.df.get("amplitude")[i][subcarry_index]
-                    )
-        return self._amplitudes
+    def split_and_cut_subrecordings(self, cut_first_ms, total_length):
+        self.split_by_frequency()
+        for sub_rec in self.get_subrecordings():
+            sub_rec.cut_length_ms(cut_first_ms, total_length)
+
+
+class Recording(
+    _InitMinix,
+    _ReadDataframeMinix,
+    _MetaDataMinix,
+    _TreeTraversalMinix,
+    _AlterDataframeMinix,
+):
+    def __init__(self, session, path: Path, df=None):
+        self.session = session
+        self._path = path
+        self.df = df
+        self.parse_sender_receiver()
+        self.reset()
+        self._no_tx_counter = None
+        self._remove_subcarrier_id = []
+        if df is None:
+            self.read_csv_santizied()
+
+    def __str__(self):
+        to_return = "------------------------------\n"
+        if not self.df.empty:
+            to_return += f"{self._path} \n \
+                sender: {self._name_sender} [{self._mac_sender}] \n \
+                receiver: {self._name_receiver} [{self._mac_receiver}] \n \
+                duration: {self.get_duration(as_str=True)} \t\t\t frequencies: {self.get_frequencies()}\n \
+                tx_packets: {self.get_tx_packets_count(as_str=True)} \t tx_packets_lost: {self.get_tx_packets_lost(as_str=True)} \t tx_lost_ratio: {self.get_tx_lost_ratio(as_str=True)}\n \
+                rx_packets: {self.get_rx_packets_count(as_str=True)} \t rx_packets_lost: {self.get_rx_packets_lost(as_str=True)} \t rx_lost_ratio: {self.get_rx_lost_ratio(as_str=True)}\n \
+                mean_rx: {ſelf.get_mean_rx_interval(as_str=True)} \t meadian_rx: {self.get_median_rx_intervall(as_str=True)} \n \
+                min_rx_intervals: {self.get_min_rx_interval(as_str=True)} \n \
+                max_rx_intervals: {self.get_max_rx_interval(as_str=True)} \n \
+                mean_tx: {ſelf.get_mean_tx_interval(as_str=True)} \t meadian_tx: {self.get_median_tx_intervall(as_str=True)} \n"  # min_tx_intervals: {ſelf.get_min_tx_interval(as_str=True)} \n \
+            # max_tx_intervals: {ſelf.get_max_tx_interval(as_str=True)} \n"
+            if self._subrecordings_split_by_freq is not None:
+                to_return += f"\t\t num_subrecordings: {len(self._subrecordings_split_by_freq)}\n"
+                for rec in self._subrecordings_split_by_freq:
+                    to_return += f"{str(rec)}"
+                to_return += "------------------------------\n"
+            else:
+                to_return += "------------------------------\n"
+        else:
+            to_return += f"{self._path} empty"
+        return to_return

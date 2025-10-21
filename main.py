@@ -1,14 +1,10 @@
 import sys
-from PyQt5.QtWidgets import (
-    QApplication,
-    QWidget,
-    QVBoxLayout,
-    QScrollArea
-)
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QScrollArea
 from pathlib import Path
 
 from components.recording_session import RecordingSession
 from widgets.amplitude_plot import AmplitudePlot
+
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -37,32 +33,66 @@ class MainWindow(QWidget):
         self.setLayout(layout)
 
         self.plots = []
-
+        
         session_anthony = RecordingSession(
             Path("rec/20251021_084451_Anthony-1 person_static")
         )
         session_empty = RecordingSession(Path("rec/20251021_084851_empty_static"))
+        session_anthony_2 = RecordingSession(
+            Path("rec/20251021_150423_Anthony-1 person_static")
+        )
+        session_empty_2 = RecordingSession(Path("rec/20251021_150834_empty_static"))
 
+        session_anthony.remove_subcarrier(
+            [1, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38]
+        )
+        session_empty.remove_subcarrier([1, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38])
+        session_anthony_2.remove_subcarrier(
+            [1, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38]
+        )
+        session_empty_2.remove_subcarrier([1, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38])
+
+        cut_first_ms = 5000
+        total_length_ms = 3000
+
+        session_anthony.split_and_cut_subrecordings(cut_first_ms, total_length_ms)
+        session_empty.split_and_cut_subrecordings(cut_first_ms, total_length_ms)
+        session_anthony_2.split_and_cut_subrecordings(cut_first_ms, total_length_ms)
+        session_empty_2.split_and_cut_subrecordings(cut_first_ms, total_length_ms)
+
+        # print(
+        #     session_anthony.get_recording(None, None, [100])[
+        #         0
+        #     ].get_mean_amplitude_per_id()
+        # )
+
+        # print([0].get_mean_amplitude_per_id())
 
         print(session_anthony.get_senders_name_mac())
         print(session_anthony.get_receivers_name_mac())
         print(session_anthony.get_frequencies())
 
-        cut_first_ms = 5000
-        total_length_ms = 1000
+        freqs = [100, 50, 25, 20, 10]
 
-        self.plot_amplitudes(
-            session_anthony, cut_first_ms, total_length_ms, "75eb44", "46ef78", [100]
-        )
-        self.plot_amplitudes(
-            session_anthony, cut_first_ms, total_length_ms, "75eb44", "73d1b8", [100]
-        )
-        self.plot_amplitudes(
-            session_empty, cut_first_ms, total_length_ms, "75eb44", "46ef78", [100]
-        )
-        self.plot_amplitudes(
-            session_empty, cut_first_ms, total_length_ms, "75eb44", "73d1b8", [100]
-        )
+        for f in freqs:
+            self.plot_amplitudes(
+                session_anthony, cut_first_ms, total_length_ms, "75eb44", "46ef78", [f]
+            )
+            self.plot_amplitudes(
+                session_anthony_2, cut_first_ms, total_length_ms, "75eb44", "46ef78", [f]
+            )
+            # self.plot_amplitudes(
+            #     session_anthony, cut_first_ms, total_length_ms, "75eb44", "73d1b8", [f]
+            # )
+            self.plot_amplitudes(
+                session_empty, cut_first_ms, total_length_ms, "75eb44", "46ef78", [f]
+            )
+            self.plot_amplitudes(
+                session_empty_2, cut_first_ms, total_length_ms, "75eb44", "46ef78", [f]
+            )
+            # self.plot_amplitudes(
+            #     session_empty, cut_first_ms, total_length_ms, "75eb44", "73d1b8", [f]
+            # )
 
     def plot_amplitudes(
         self,
@@ -92,7 +122,7 @@ def main():
     # Get folder path from command-line argument
     folder_path = sys.argv[1] if len(sys.argv) > 1 else None
 
-    window = MainWindow(folder_path=folder_path)
+    window = MainWindow()
     window.show()
 
     sys.exit(app.exec_())

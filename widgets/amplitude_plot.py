@@ -12,12 +12,13 @@ class AmplitudePlot(QWidget):
         # Get amplitude data from the Recording
         # Expecting a dict where each key is a line
         self.data = rec.get_amplitudes()
-        self.title = f"{rec.get_senders_name_mac()} - {rec.get_receivers_name_mac()} - {rec.get_frequencies()}"
+        datetime, name = rec.get_datetime_name()
+        self.title = f"{datetime} - {rec.get_senders_name_mac()} - {rec.get_receivers_name_mac()} - {rec.get_frequencies()} - {name}"
         self.setFixedHeight(300)
 
 
         # Create Matplotlib Figure and Canvas
-        self.figure = Figure(figsize=(6, 4))
+        self.figure = Figure(figsize=(12, 3))
         self.canvas = FigureCanvas(self.figure)
 
         # Layout to hold the canvas
@@ -33,10 +34,11 @@ class AmplitudePlot(QWidget):
         ax.clear()
 
         for key, values in self.data.items():
-            ax.plot(values, marker='o', label=f"Line {key}")
+            ax.plot(values, label=f"Line {key}")
 
         ax.set_xlabel("Index")
         ax.set_ylabel("Amplitude")
+        ax.set_ylim(0, 25)
         ax.set_title(title)
         ax.grid(True)
         print(f"plot: {title}")
