@@ -6,13 +6,19 @@ from components.recording import Recording
 
 
 class RecordingSession:
-    def __init__(self, directory: Path):
+    def __init__(self, directory):
         super().__init__()
 
+        directory = Path(directory)
         self.recordings = []
         self.environment = None
         self.respiration = []
-        self._datetime, self._name = self.parse_datetime_name(directory.name)
+        self._datetime, self._name, self._mode = self.parse_datetime_name_mode(directory.name)
+
+        # print(self._datetime)
+        # print(self._name)
+        # print(self._mode)
+        # print("--------------")
 
         for file_path in directory.iterdir():
             if file_path.suffix == ".csv":
@@ -28,18 +34,26 @@ class RecordingSession:
     def __str__(self):
         return "\n".join(str(rec) for rec in self.recordings)
 
-    def parse_datetime_name(self, filename: str):
-        # (\d{8})_(\d{6}) -> date + time
-        # _(.*) -> rest of the filename as name
-        pattern = r"(\d{8})_(\d{6})_(.*)$"
-        
-        match = re.match(pattern, filename)
-        if not match:
-            raise ValueError(f"Filename does not match expected format: {filename}")
-        
-        date_str, time_str, name = match.groups()
-        dt = datetime.strptime(date_str + time_str, "%Y%m%d%H%M%S")
-        return dt, name
+    @staticmethod
+    def parse_datetime_name_mode(filename: str):
+        # Handles cases like:
+        # 20251104_125744_estelle-ian_2 person_static
+        # 20251104_125120_estelle-1 person_static
+        # 20251104_124422_empty_static
+        pattern = r"(\d{8})_(\d{6})_((?:[\w-]+))[-_](2 person|1 person|empty)_(.*)$"
+        match = re.match(pattern, filename, re.IGNORECASE)
+        if match:
+            date_str, time_str, name, mode, _ = match.groups()
+            dt = datetime.strptime(date_str + time_str, "%Y%m%d%H%M%S")
+            return dt, name, mode
+        # fallback for 'empty' with no dash
+        pattern_empty = r"(\d{8})_(\d{6})_(empty)_(.*)$"
+        match = re.match(pattern_empty, filename, re.IGNORECASE)
+        if match:
+            date_str, time_str, name, _ = match.groups()
+            dt = datetime.strptime(date_str + time_str, "%Y%m%d%H%M%S")
+            return dt, name, "empty"
+        raise ValueError(f"Filename does not match expected format: {filename}")
 
     def get_senders_name_mac(self):
         entries = [rec.get_senders_name_mac() for rec in self.recordings]
@@ -70,5 +84,22 @@ class RecordingSession:
             for rec in self.recordings
         ]
 
+    def split_by_frequency(self):
+        [rec.split_by_frequency() for rec in self.recordings]
+
     def remove_subcarrier(self, index: list):
         [rec.remove_subcarrier(index) for rec in self.recordings]
+
+    def save_split_by_frequency_to_file(self):
+        self.split_by_frequency()
+        for rec in self.recordings:
+            rec.save_to_file_if_split()
+
+    def get_datetime(self):
+        return self._datetime
+
+    def get_name(self):
+        return self._name
+    
+    def get_mode(self):
+        return self._mode

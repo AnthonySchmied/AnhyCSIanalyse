@@ -1,4 +1,7 @@
 from pathlib import Path
+from components.amplitudes import Amplitudes
+from components.phases import Phases
+from components.complex_values import ComplexValues
 import pandas as pd
 import numpy as np
 import datetime
@@ -7,7 +10,43 @@ import ast
 import re
 
 
-class _InitMinix:
+class _ReturnAmplitudesMinix:
+    def get_amplitudes_per_line(self):
+        # return dict with id key and values list
+        if self._amplitudes is None and not self.df.empty:
+            self._amplitudes = Amplitudes(self.df)
+
+            # self._amplitudes = {}
+            # subcarry_count = len(self.df.get("amplitude")[0])
+            # for subcarry_index in range(subcarry_count):
+            #     self._amplitudes[subcarry_index + 1] = []
+            # for i in range(len(self.df)):
+            #     for subcarry_index in range(subcarry_count):
+            #         if not subcarry_index + 1 in self._remove_subcarrier_id:
+            #             self._amplitudes[subcarry_index + 1].append(
+            #                 self.df.get("amplitude")[i][subcarry_index]
+            #             )
+
+        return self._amplitudes.get_amplitudes_per_line()
+
+    def get_amplitudes_per_rxtime(self):
+        # return dict with time key and values list
+        if self._amplitudes is None and not self.df.empty:
+            self._amplitudes = Amplitudes(self.df)
+        return self._amplitudes.get_amplitudes_per_rxtime()
+
+    def get_amplitudes_per_line_normalized(self):
+        if self._amplitudes is None and not self.df.empty:
+            self._amplitudes = Amplitudes(self.df)
+        return self.get_amplitudes_per_line_normalized()
+
+    def get_amplitudes_per_rxtime_normalized(self):
+        if self._amplitudes is None and not self.df.empty:
+            self._amplitudes = Amplitudes(self.df)
+        return self.get_amplitudes_per_rxtime_normalized()
+
+
+class _InitRecordingMinix:
     def reset(self):
         self._duration_ms = None
         self._tx_packets_count = None
@@ -30,7 +69,7 @@ class _InitMinix:
         self._mean_amplitudes = None
 
 
-class _ReadDataframeMinix:
+class _ReadRecordingMinix:
     def parse_sender_receiver(self):
         m = re.match(
             r"^csi_([0-9a-fA-F]{6})_([^_]+)-([0-9a-fA-F]{6})_([^_]+)\.csv$",
@@ -51,15 +90,17 @@ class _ReadDataframeMinix:
 
     def read_csv_santizied(self):
         pickle_path = Path(self._path.parent, "." + self._path.stem + ".pkl")
-
-        if pickle_path.is_file():
+        def read_pickle():
             try:
                 print(f"Loading from pickle: {pickle_path}")
                 self.df = pd.read_pickle(pickle_path)
+                if "complex" not in self.df.columns:
+                    read_csv()
             except Exception as e:
                 print(f"Error loading pickle: {e}, reparsing CSV...")
                 raise e
-        else:
+
+        def read_csv():
             # only parse file the first time -> pickle keeps format
             print(f"load from csv: {self._path}")
             cols = [
@@ -105,13 +146,25 @@ class _ReadDataframeMinix:
             self.df = self.df[self.df["tx_counter"].between(0, 1e7)]
             self.df = self.df[self.df["rx_counter"].between(0, 1e7)]
             self.df["amplitude"] = self.df["amplitude"].apply(ast.literal_eval)
+            self.df["phase"] = self.df["phase"].apply(ast.literal_eval)
+            self.df["raw_data"] = self.df["raw_data"].apply(ast.literal_eval)
+            self.df["complex"] = [
+                ([complex(row[i], row[i + 1]) for i in range(0, len(row), 2)])
+                for row in self.df["raw_data"]
+            ]
             self.df.dropna(subset=cols, inplace=True)
             self.df.reset_index(drop=True, inplace=True)
-
             self.df.to_pickle(pickle_path)
 
 
-class _MetaDataMinix:
+        if pickle_path.is_file():
+            read_pickle()
+        else:
+            read_csv()
+            
+
+
+class _MetaDataRecordingMinix:
     def get_duration(self, as_str=False):
         if len(self.df) > 2:
             if self._duration_ms is None:
@@ -301,29 +354,15 @@ class _MetaDataMinix:
             self._frequencies = frequencies
         return self._frequencies
 
-    def get_amplitudes(self):
-        if self._amplitudes is None and not self.df.empty:
-            self._amplitudes = {}
-            subcarry_count = len(self.df.get("amplitude")[0])
-            for subcarry_index in range(subcarry_count):
-                self._amplitudes[subcarry_index + 1] = []
-            for i in range(len(self.df)):
-                for subcarry_index in range(subcarry_count):
-                    if not subcarry_index + 1 in self._remove_subcarrier_id:
-                        self._amplitudes[subcarry_index + 1].append(
-                            self.df.get("amplitude")[i][subcarry_index]
-                        )
-        return self._amplitudes
-
-    def get_mean_amplitude_per_id(self):
-        if self._mean_amplitudes is None and not self.df.empty:
-            if self._amplitudes is None:
-                self.get_amplitudes()
-            self._mean_amplitudes = {}
-            for subcarry_index, values in self._amplitudes.items():
-                if not subcarry_index in self._remove_subcarrier_id:
-                    self._mean_amplitudes[subcarry_index] = float(np.mean(values))
-        return self._mean_amplitudes
+    # def get_mean_amplitude_per_id(self):
+    #     if self._mean_amplitudes is None and not self.df.empty:
+    #         if self._amplitudes is None:
+    #             self.get_amplitudes()
+    #         self._mean_amplitudes = {}
+    #         for subcarry_index, values in self._amplitudes.items():
+    #             if not subcarry_index in self._remove_subcarrier_id:
+    #                 self._mean_amplitudes[subcarry_index] = float(np.mean(values))
+    #     return self._mean_amplitudes
 
     def get_datetime_name(self):
         if not self.session is None:
@@ -331,7 +370,7 @@ class _MetaDataMinix:
         return None, None
 
 
-class _TreeTraversalMinix:
+class _TreeTraversaRecordinglMinix:
 
     def get_recording(self, sender_mac=None, receiver_mac=None, freqs=None):
         to_return = []
@@ -383,7 +422,7 @@ class _TreeTraversalMinix:
         return (self._name_receiver, self._mac_receiver)
 
 
-class _AlterDataframeMinix:
+class _AlterRecordingMinix:
 
     def split_by_frequency(self, drop_first_last=True):
         if (
@@ -445,12 +484,67 @@ class _AlterDataframeMinix:
             sub_rec.cut_length_ms(cut_first_ms, total_length)
 
 
+class _OperatorMinix:
+
+    # def __add__(self, other):
+    #     if isinstance(other, float) or isinstance(other, int):
+    #         return Recording(self.)
+    #         new_df = self.df[self.columns] + other
+    #         return self.__class__(new_df, self.recording, self.columns)
+    #     elif isinstance(other, SignalData):
+    #         common_cols = list(set(self.columns) & set(other.columns))
+    #         new_df = self.df[common_cols].add(other.df[common_cols])
+    #         return self.__class__(new_df.dropna(), other.recording, other.columns)
+    #     else:
+    #         return NotImplemented
+
+    pass
+
+    # def __sub__(self, other):
+    #     if isinstance(other, float) or isinstance(other, int):
+    #         new_df = self.df[self.columns] - other
+    #         return self.__class__(new_df, self.recording, self.columns)
+    #     elif isinstance(other, SignalData):
+    #         common_cols = list(set(self.columns) & set(other.columns))
+    #         new_df = self.df[common_cols].sub(other.df[common_cols])
+    #         return self.__class__(new_df.dropna(), other.recording, other.columns)
+    #     else:
+    #         return NotImplemented
+
+    # def __mul__(self, other):
+    #     if isinstance(other, (float, int)):
+    #         new_df = self.df[self.columns] * other
+    #         return self.__class__(new_df, self.recording, self.columns)
+    #     elif isinstance(other, SignalData):
+    #         common_cols = list(set(self.columns) & set(other.columns))
+    #         new_df = self.df[common_cols].mul(other.df[common_cols], fill_value=0)
+    #         new_df = new_df.dropna()
+    #         return self.__class__(new_df, self.recording, common_cols)
+    #     else:
+    #         return NotImplemented
+
+    # def __truediv__(self, other):
+    #     if isinstance(other, (float, int)):
+    #         if other == 0:
+    #             raise ZeroDivisionError("division by zero")
+    #         new_df = self.df[self.columns] / other
+    #         return self.__class__(new_df, self.recording, self.columns)
+    #     elif isinstance(other, SignalData):
+    #         common_cols = list(set(self.columns) & set(other.columns))
+    #         new_df = self.df[common_cols].div(other.df[common_cols], fill_value=np.nan)
+    #         new_df = new_df.dropna()
+    #         return self.__class__(new_df, self.recording, common_cols)
+    #     else:
+    #         return NotImplemented
+
+
 class Recording(
-    _InitMinix,
-    _ReadDataframeMinix,
-    _MetaDataMinix,
-    _TreeTraversalMinix,
-    _AlterDataframeMinix,
+    _InitRecordingMinix,
+    _ReadRecordingMinix,
+    _MetaDataRecordingMinix,
+    _TreeTraversaRecordinglMinix,
+    _AlterRecordingMinix,
+    _OperatorMinix,
 ):
     def __init__(self, session, path: Path, df=None):
         self.session = session
@@ -487,3 +581,22 @@ class Recording(
         else:
             to_return += f"{self._path} empty"
         return to_return
+
+    def get_amplitudes(self):
+        return Amplitudes(self.df, rec=self)
+
+    def get_phases(self):
+        return Phases(self.df, rec=self)
+    
+    def get_complex_values(self):
+        return ComplexValues(self.df, rec=self)
+
+    def save_to_file_if_split(self):
+        if len(self.get_frequencies()) == 1:
+            path = Path(
+                self._path.parent,
+                f"cutcsi_{int(self._frequencies[0])}{self._path.stem[3:]}.pkl",
+            )
+            self.df.to_pickle(path)
+        else:
+            [rec.save_to_file_if_split() for rec in self._subrecordings_split_by_freq]

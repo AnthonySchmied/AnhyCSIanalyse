@@ -1,0 +1,174 @@
+import pandas as pd
+import numpy as np
+from scipy.signal import butter, filtfilt
+
+# def _normalize_df(df, columns):
+#     max_value = df[columns].to_numpy().max()
+#     min_value = df[columns].to_numpy().min()
+#     scale = max(max_value, abs(min_value))
+#     print(min_value)
+#     print(scale)
+#     if min_value < 0:
+#         shift = True
+#         scale *= 2 if min_value < 0 else scale
+#     else:
+#         shift = False
+#     normalized_df = df.copy()
+#     print(shift)
+#     if scale != 0:
+#         normalized_df[columns] = normalized_df[columns] / scale
+#         if shift:
+#             normalized_df[columns] = normalized_df[columns] + 0.5
+#     return normalized_df
+
+
+def _normalize_df(df, columns):
+    max_value = df[columns].to_numpy().max()
+    min_value = df[columns].to_numpy().min()
+    shift_up = 0
+    if min_value < 0:
+        shift_up = abs(min_value)
+        max_value += shift_up
+    normalized_df = df.copy()
+    if max_value != 0:
+        normalized_df[columns] = (normalized_df[columns]+shift_up) / max_value
+    return normalized_df
+
+
+def _standardize_df(df, columns):
+    """Standardize selected columns to mean=0, std=1."""
+    standardized_df = df.copy()
+    mean = df[columns].mean()
+    std = df[columns].std()
+    standardized_df[columns] = (df[columns] - mean) / std.replace(0, 1)
+    return standardized_df
+
+
+def _scale_df(df, columns):
+    """Scale selected columns to [0, 1]."""
+    scaled_df = df.copy()
+    min_val = df[columns].min()
+    max_val = df[columns].max()
+    denom = (max_val - min_val).replace(0, 1)
+    scaled_df[columns] = (df[columns] - min_val) / denom
+    return scaled_df
+
+def _hampel_filter(series, window_size, n_sigmas):
+    # Rolling median
+    rolling_median = series.rolling(window_size, center=True).median()
+    # Median absolute deviation
+    mad = series.rolling(window_size, center=True).apply(
+        lambda x: np.median(np.abs(x - np.median(x))), raw=True
+    )
+    threshold = n_sigmas * 1.4826 * mad  # 1.4826 converts MAD to std
+    diff = np.abs(series - rolling_median)
+    filtered = series.copy()
+    filtered[diff > threshold] = rolling_median[diff > threshold]
+    return filtered
+
+def _hampel_df(df, columns, window_size, n_sigmas):
+    filtered_df = df.copy()
+    for col in columns:
+        filtered_df[col] = _hampel_filter(filtered_df[col], window_size, n_sigmas)
+    return filtered_df
+
+
+def _compute_fft(df, columns, dt):
+    fft_results = {}
+    n = len(df)
+    for col in columns:
+        signal = df[col].to_numpy()
+        fft_vals = np.fft.rfft(signal)
+        freqs = np.fft.rfftfreq(n, d=dt)
+        fft_results[col] = {"freqs": freqs, "magnitude": np.abs(fft_vals)}
+    return fft_results
+
+def _bandpass_filter(series, lowcut, highcut, fs, order):
+    """
+    Band-pass filter for CSI data.
+    
+    Parameters:
+        data : np.ndarray
+            Input data, shape (time, subcarriers)
+        lowcut : float
+            Low frequency cutoff (Hz)
+        highcut : float
+            High frequency cutoff (Hz)
+        fs : float
+            Sampling frequency (Hz)
+        order : int
+            Filter order
+            
+    Returns:
+        filtered_data : np.ndarray
+            Band-pass filtered data, same shape as input
+    """
+    nyq = 0.5 * fs
+    low = lowcut / nyq
+    high = highcut / nyq
+    print(f"{fs} - {nyq} - {low} - {high}")
+    b, a = butter(order, [low, high], btype='band')
+    filtered_data = filtfilt(b, a, series, axis=0)
+    return filtered_data
+
+def _bandpass_df(df, columns, lowcut, highcut, fs, order):
+    filtered_df = df.copy()
+    for col in columns:
+        filtered_df[col] = _bandpass_filter(filtered_df[col], lowcut, highcut, fs, order)
+    return filtered_df
+
+def _compute_abs(df, columns):
+    abs_df = df.copy()
+    abs_df = abs(abs_df[columns])
+    return abs_df
+
+class SensOps:
+    @staticmethod
+    def normalized(data_in):
+        normalized_df = _normalize_df(data_in.df, data_in.columns)
+        return data_in.__class__(normalized_df, data_in.recording, data_in.columns)
+
+    @staticmethod
+    def standardized(data_in):
+        standardized_df = _standardize_df(data_in.df, data_in.columns)
+        return data_in.__class__(standardized_df, data_in.recording, data_in.columns)
+
+    @staticmethod
+    def scaled(data_in):
+        scaled_df = _scale_df(data_in.df, data_in.columns)
+        return data_in.__class__(scaled_df, data_in.recording, data_in.columns)
+
+    @staticmethod
+    def hampeled(data_in, window_size, n_sigmas):
+        filtered_df = _hampel_df(data_in.df, data_in.columns, window_size, n_sigmas)
+        return data_in.__class__(filtered_df, data_in.recording, data_in.columns)
+
+    @staticmethod
+    def subcarrier_enabled(data_in, subcarrier: list):
+        data_in.subcarrier_enable(subcarrier)
+        new_amps = data_in.__class__(data_in.df, data_in.recording, data_in.columns)
+        new_amps.subcarrier_enable(subcarrier)
+        return new_amps
+
+    @staticmethod
+    def calculate_ftt(data_in):
+        return _compute_fft(
+            data_in.df, data_in.columns, 1 / data_in.recording.get_frequencies()[0]
+        )
+
+    @staticmethod
+    def bandpassed(data_in, lowcut, highcut, order=4):
+        filtered_df = _bandpass_df(data_in.df, data_in.columns, lowcut, highcut, data_in.recording.get_frequencies()[0], order)
+        return data_in.__class__(filtered_df, data_in.recording, data_in.columns)
+
+    @staticmethod
+    def get_mean_by_subcarrier_sorted(data_in):
+        mean = {}
+        for sub in data_in.columns:
+            mean[sub] = np.mean(data_in.df[sub])
+        mean = dict(sorted(mean.items(), key=lambda item: item[1]))
+        return mean
+
+    @staticmethod
+    def abs(data_in):
+        return data_in.__class__(_compute_abs(data_in.df, data_in.columns), data_in.recording, data_in.columns)
