@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from scipy.signal import butter, filtfilt
+from scipy.signal import medfilt
 
 # def _normalize_df(df, columns):
 #     max_value = df[columns].to_numpy().max()
@@ -31,7 +32,7 @@ def _normalize_df(df, columns):
         max_value += shift_up
     normalized_df = df.copy()
     if max_value != 0:
-        normalized_df[columns] = (normalized_df[columns]+shift_up) / max_value
+        normalized_df[columns] = (normalized_df[columns] + shift_up) / max_value
     return normalized_df
 
 
@@ -53,6 +54,7 @@ def _scale_df(df, columns):
     scaled_df[columns] = (df[columns] - min_val) / denom
     return scaled_df
 
+
 def _hampel_filter(series, window_size, n_sigmas):
     # Rolling median
     rolling_median = series.rolling(window_size, center=True).median()
@@ -66,11 +68,27 @@ def _hampel_filter(series, window_size, n_sigmas):
     filtered[diff > threshold] = rolling_median[diff > threshold]
     return filtered
 
+
 def _hampel_df(df, columns, window_size, n_sigmas):
     filtered_df = df.copy()
     for col in columns:
         filtered_df[col] = _hampel_filter(filtered_df[col], window_size, n_sigmas)
     return filtered_df
+
+
+def _smooth_df(df, columns):
+    filtered_df = df.copy()
+    for col in columns:
+        filtered_df[col] = medfilt(filtered_df[col], kernel_size=37)
+    return filtered_df
+
+
+def _center_df(df, columns):
+    centered_df = df.copy()
+    for col in columns:
+        mean = np.mean(centered_df[col])
+        centered_df[col] = centered_df[col] - mean
+    return centered_df
 
 
 def _compute_fft(df, columns, dt):
@@ -83,10 +101,11 @@ def _compute_fft(df, columns, dt):
         fft_results[col] = {"freqs": freqs, "magnitude": np.abs(fft_vals)}
     return fft_results
 
+
 def _bandpass_filter(series, lowcut, highcut, fs, order):
     """
     Band-pass filter for CSI data.
-    
+
     Parameters:
         data : np.ndarray
             Input data, shape (time, subcarriers)
@@ -98,7 +117,7 @@ def _bandpass_filter(series, lowcut, highcut, fs, order):
             Sampling frequency (Hz)
         order : int
             Filter order
-            
+
     Returns:
         filtered_data : np.ndarray
             Band-pass filtered data, same shape as input
@@ -107,20 +126,55 @@ def _bandpass_filter(series, lowcut, highcut, fs, order):
     low = lowcut / nyq
     high = highcut / nyq
     print(f"{fs} - {nyq} - {low} - {high}")
-    b, a = butter(order, [low, high], btype='band')
+    b, a = butter(order, [low, high], btype="band")
     filtered_data = filtfilt(b, a, series, axis=0)
     return filtered_data
+
 
 def _bandpass_df(df, columns, lowcut, highcut, fs, order):
     filtered_df = df.copy()
     for col in columns:
-        filtered_df[col] = _bandpass_filter(filtered_df[col], lowcut, highcut, fs, order)
+        filtered_df[col] = _bandpass_filter(
+            filtered_df[col], lowcut, highcut, fs, order
+        )
     return filtered_df
+
 
 def _compute_abs(df, columns):
     abs_df = df.copy()
     abs_df = abs(abs_df[columns])
     return abs_df
+
+def _compute_correlation_matrix(df1, columns, df2):
+    class corr_result():
+        def __init__(self, matrix):
+            self.matrix = matrix
+            self.index = np.mean(self.matrix)
+            print(self.index)
+
+    if not df2 is None:
+        df1_sel = df1[columns]
+        df2_sel = df2[columns]
+
+        min_len = min(len(df1_sel), len(df2_sel))
+        df1_sel = df1_sel.iloc[:min_len]
+        df2_sel = df2_sel.iloc[:min_len]
+
+        # Concatenate for np.corrcoef
+        combined = np.concatenate([df1_sel.values.T, df2_sel.values.T], axis=0)
+        corr_matrix = np.corrcoef(combined)
+
+        n1 = df1_sel.shape[1]
+        n2 = df2_sel.shape[1]
+
+        return corr_result(corr_matrix[:n1, n1:n1+n2])
+        # pairwise_corr_abs = np.abs(pairwise_corr)
+        # result.index = np.mean(result.matrix)
+        # return result
+    else:
+        return corr_result(df1[columns].corr())
+        # result.index = np.mean(result.matrix)
+        # return result
 
 class SensOps:
     @staticmethod
@@ -157,8 +211,25 @@ class SensOps:
         )
 
     @staticmethod
+    def smooth(data_in):
+        filtered_df = _smooth_df(data_in.df, data_in.columns)
+        return data_in.__class__(filtered_df, data_in.recording, data_in.columns)
+
+    @staticmethod
+    def center(data_in):
+        centered_df = _center_df(data_in.df, data_in.columns)
+        return data_in.__class__(centered_df, data_in.recording, data_in.columns)
+
+    @staticmethod
     def bandpassed(data_in, lowcut, highcut, order=4):
-        filtered_df = _bandpass_df(data_in.df, data_in.columns, lowcut, highcut, data_in.recording.get_frequencies()[0], order)
+        filtered_df = _bandpass_df(
+            data_in.df,
+            data_in.columns,
+            lowcut,
+            highcut,
+            data_in.recording.get_frequencies()[0],
+            order,
+        )
         return data_in.__class__(filtered_df, data_in.recording, data_in.columns)
 
     @staticmethod
@@ -171,4 +242,15 @@ class SensOps:
 
     @staticmethod
     def abs(data_in):
-        return data_in.__class__(_compute_abs(data_in.df, data_in.columns), data_in.recording, data_in.columns)
+        return data_in.__class__(
+            _compute_abs(data_in.df, data_in.columns),
+            data_in.recording,
+            data_in.columns,
+        )
+
+    @staticmethod
+    def correlation(data1_in, data2_in=None):
+        if data2_in is not None:
+            return _compute_correlation_matrix(data1_in.df, data1_in.columns, data2_in.df)
+        else:
+            return _compute_correlation_matrix(data1_in.df, data1_in.columns, None)

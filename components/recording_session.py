@@ -13,7 +13,9 @@ class RecordingSession:
         self.recordings = []
         self.environment = None
         self.respiration = []
-        self._datetime, self._name, self._mode = self.parse_datetime_name_mode(directory.name)
+        self._datetime, self._name, self._mode = self.parse_datetime_name_mode(
+            directory.name
+        )
 
         # print(self._datetime)
         # print(self._name)
@@ -70,6 +72,19 @@ class RecordingSession:
         unique_freqs = sorted({freq for sublist in entries for freq in sublist})
         return unique_freqs
 
+    def get_recordings_filtered(self, dates, names, modes, senders, receivers):
+        if (
+            self._datetime.date() in dates
+            and self._name in names
+            and self._mode in modes
+        ):
+            return [
+                rec.get_recordings_filtered(senders, receivers)
+                for rec in self.recordings
+            ]
+        else:
+            return []
+
     def get_recording(self, sender_mac=None, receiver_mac=None, freqs=None):
         to_return = []
         [
@@ -77,6 +92,9 @@ class RecordingSession:
             for rec in self.recordings
         ]
         return to_return
+
+    def get_recordings_set(self):
+        return [rec for rec in self.recordings]
 
     def split_and_cut_subrecordings(self, cut_first_ms, total_length):
         [
@@ -98,8 +116,11 @@ class RecordingSession:
     def get_datetime(self):
         return self._datetime
 
+    def get_date(self):
+        return self._datetime.date()
+
     def get_name(self):
         return self._name
-    
+
     def get_mode(self):
         return self._mode

@@ -5,12 +5,21 @@ from components.complex_values import ComplexValues
 import pandas as pd
 import numpy as np
 import datetime
-import copy
 import ast
 import re
 
 
+def ensure_data_loaded(func):
+    def wrapper(self, *args, **kwargs):
+        if getattr(self, "df", None) is None or getattr(self, "df", None).empty:
+            self.read_from_storage()
+        return func(self, *args, **kwargs)
+
+    return wrapper
+
+
 class _ReturnAmplitudesMinix:
+    @ensure_data_loaded
     def get_amplitudes_per_line(self):
         # return dict with id key and values list
         if self._amplitudes is None and not self.df.empty:
@@ -90,6 +99,7 @@ class _ReadRecordingMinix:
 
     def read_csv_santizied(self):
         pickle_path = Path(self._path.parent, "." + self._path.stem + ".pkl")
+
         def read_pickle():
             try:
                 print(f"Loading from pickle: {pickle_path}")
@@ -142,6 +152,12 @@ class _ReadRecordingMinix:
             self.df[numeric_cols] = self.df[numeric_cols].apply(
                 pd.to_numeric, errors="coerce"
             )
+            self.df["rx_time"] = pd.to_numeric(
+                self.df["rx_time"], errors="coerce"
+            ).astype("Int64")
+            self.df["tx_time"] = pd.to_numeric(
+                self.df["tx_time"], errors="coerce"
+            ).astype("Int64")
             self.df = self.df[self.df["tx_frequency"].between(0, 500)]
             self.df = self.df[self.df["tx_counter"].between(0, 1e7)]
             self.df = self.df[self.df["rx_counter"].between(0, 1e7)]
@@ -156,15 +172,15 @@ class _ReadRecordingMinix:
             self.df.reset_index(drop=True, inplace=True)
             self.df.to_pickle(pickle_path)
 
-
         if pickle_path.is_file():
+        # if False:
             read_pickle()
         else:
             read_csv()
-            
 
 
 class _MetaDataRecordingMinix:
+    @ensure_data_loaded
     def get_duration(self, as_str=False):
         if len(self.df) > 2:
             if self._duration_ms is None:
@@ -369,9 +385,24 @@ class _MetaDataRecordingMinix:
             return self.session._datetime, self.session._name
         return None, None
 
+    def get_datetime(self):
+        return self.session.get_datetime()
+
+    def get_date(self):
+        return self.session.get_date()
+
+    def get_name(self):
+        return self.session.get_name()
+
+    def get_mode(self):
+        return self.session.get_mode()
+
+    def get_id(self):
+        return f"{self.get_datetime()} {self.get_name()} {self.get_frequencies()} {self.get_receivers_name_mac()[0]}"
+
 
 class _TreeTraversaRecordinglMinix:
-
+    @ensure_data_loaded
     def get_recording(self, sender_mac=None, receiver_mac=None, freqs=None):
         to_return = []
         self.get_frequencies()
@@ -402,6 +433,15 @@ class _TreeTraversaRecordinglMinix:
                     to_return.append(self)
         return to_return
 
+    def get_recordings_filtered(self, senders, receivers):
+        if (
+            self.get_senders_name_mac() in senders
+            and self.get_receivers_name_mac() in receivers
+        ):
+            return self
+        else:
+            return None
+
     def get_subrecordings(self):
         return (
             self._subrecordings_split_by_freq
@@ -423,7 +463,7 @@ class _TreeTraversaRecordinglMinix:
 
 
 class _AlterRecordingMinix:
-
+    @ensure_data_loaded
     def split_by_frequency(self, drop_first_last=True):
         if (
             not self.df.empty
@@ -460,16 +500,18 @@ class _AlterRecordingMinix:
                 self._subrecordings_split_by_freq.pop(0)
                 self._subrecordings_split_by_freq.pop()
 
+    @ensure_data_loaded
     def remove_subcarrier(self, index: list):
         self._remove_subcarrier_id.extend(index)
         if self._subrecordings_split_by_freq is not None:
             for rec in self._subrecordings_split_by_freq:
                 rec.remove_subcarrier(index)
 
+    @ensure_data_loaded
     def cut_length_ms(self, front_padding_ms, length_ms):
-        if not self.df.empty and self.get_duration() > front_padding_ms + length_ms:
-            time_slice_begin = self.df.iloc[0]["rx_time"] + front_padding_ms * 1e3
-            time_slice_end = time_slice_begin + length_ms * 1e3
+        if not self.df.empty and self.get_duration() > front_padding_ms + length_ms:           
+            time_slice_begin = self.df.iloc[0]["rx_time"] + (front_padding_ms * 10**3)
+            time_slice_end = time_slice_begin + (length_ms * 10**3)
             df_cut_front = self.df[self.df["rx_time"] >= time_slice_begin].reset_index(
                 drop=True
             )
@@ -554,9 +596,11 @@ class Recording(
         self.reset()
         self._no_tx_counter = None
         self._remove_subcarrier_id = []
-        if df is None:
-            self.read_csv_santizied()
 
+    def read_from_storage(self):
+        self.read_csv_santizied()
+
+    @ensure_data_loaded
     def __str__(self):
         to_return = "------------------------------\n"
         if not self.df.empty:
@@ -582,15 +626,22 @@ class Recording(
             to_return += f"{self._path} empty"
         return to_return
 
+    def get_copy(self):
+        return self.__class__(self.session, self._path, self.df.copy())
+
+    @ensure_data_loaded
     def get_amplitudes(self):
         return Amplitudes(self.df, rec=self)
 
+    @ensure_data_loaded
     def get_phases(self):
         return Phases(self.df, rec=self)
-    
+
+    @ensure_data_loaded
     def get_complex_values(self):
         return ComplexValues(self.df, rec=self)
 
+    @ensure_data_loaded
     def save_to_file_if_split(self):
         if len(self.get_frequencies()) == 1:
             path = Path(

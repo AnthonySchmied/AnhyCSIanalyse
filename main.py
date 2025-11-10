@@ -1,13 +1,15 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QScrollArea
 from pathlib import Path
+import datetime
 
 from components.recording_session_collection import RecordingSessionCollection
 from components.recording_session import RecordingSession
 from components.amplitudes import Amplitudes
 from components.sens_ops import SensOps as so
 from widgets.amplitude_plot import AmplitudePlot
-
+from widgets.correlation_plot import CorrelationPlot
+import threading
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -38,7 +40,7 @@ class MainWindow(QWidget):
         self.plots = []
 
         cut_first_ms = 5000
-        total_length_ms = 15000
+        total_length_ms = 5000
 
         def get_prepared_session(path):
             session = RecordingSession(Path(path))
@@ -58,33 +60,251 @@ class MainWindow(QWidget):
         # [('Recv-2', '73d1b8'), ('Recv-1', '46ef78'), ('Recv-3', '46e648')]
 
         recordings = []
+        session_coll = RecordingSessionCollection(
+            [Path("rec/01_recording/"), Path("rec/02_recording/")]
+        )
+
+        def filter_correlation():
+            x = 0
+
+            threads = []
+
+            for ses in filter(
+                lambda ses: RecordingSessionCollection.applyFilter(
+                    ses,
+                    senders=[("Sender-1", "75eb44")],
+                    receivers=[
+                        ('Recv-1', '46ef78'),
+                        ("Recv-3", "46e648"),
+                        ("Recv-2", "73d1b8"),
+                    ],
+                    dates=[datetime.date(2025, 11, 5)],
+                    names=["anthony", "ian", "estelle", "hussein", "empty"],
+                    modes=["1 person", "empty"],
+                ),
+                session_coll.get_recordings_set(),
+            ):
+                ses.split_by_frequency()
+                rec = ses.get_recording(freqs=[50])[0]
+
+                # rec.subcarrier_enable([i for i in range(2,15)])
+
+                # rec0 = rec.get_copy()
+                # rec0.cut_length_ms(0, 5000)
+                # data = rec0.get_amplitudes()
+                # data = so.normalized(data)
+                # plot = self.plot_amplitudes(data)
+                # plot.plot_amplitudes(data.get_by_subcarriers())
+
+                plot = self.plot_correletion(rec)
+
+                def plot_rec(rec):
+                    last_rec = rec.get_copy()
+                    for i in range(1,7):
+                        r = rec.get_copy()
+                        r.cut_length_ms(11000, (i*30)+30)
+
+                        # so.correlation(rec1.get_amplitudes())
+                        # plot.plot_correlation(so.correlation(last_rec.get_amplitudes(), r.get_amplitudes()))
+                        plot.plot_correlation(so.correlation(r.get_amplitudes()))
+                        last_rec = r
+
+                plot_rec(rec)
+
+                # # Create a new thread for plotting correlation
+                # t = threading.Thread(target=plot_rec, args=(rec,))
+                # threads.append(t)
+                # t.start()
+
+            # Wait for all threads to finish before continuing
+            # for t in threads:
+            #     t.join()
+
+                # r0 = rec.get_copy()
+                # r0.cut_length_ms(100, 100)
+                # # r0_amps = r0
+                # # plot.plot_correlation(so.correlation(r0_amps))
+
+                # last_rec = r0
+
+                # for i in range(1,10):
+                #     r = rec.get_copy()
+                #     r.cut_length_ms((100*i)+1000, 100)
+                    
+                #     # print(i*10000)
+                #     # print((i+1)*10000)
+
+                #     # so.correlation(rec1.get_amplitudes())
+                #     plot.plot_correlation(so.correlation(last_rec.get_amplitudes(), r.get_amplitudes()))
+                #     # plot.plot_correlation(so.correlation(r0_amps, r.get_amplitudes()))
+                #     last_rec = r
+
+                # x += 1
+                # if x == 2:
+                #     break
+
+
+                # break
+                # rec0 = rec.get_copy()
+                # rec0.cut_length_ms(0, 10000)
+                # data = rec0.get_amplitudes()
+                # data = so.normalized(data)
+                # plot = self.plot_amplitudes(data)
+                # plot.plot_amplitudes(data.get_by_subcarriers())
+
+                # rec1 = rec.get_copy()
+                # rec1.cut_length_ms(0, 5000)
+                # data1 = rec1.get_amplitudes()
+                # data1 = so.normalized(data1)
+                # plot = self.plot_amplitudes(data1)
+                # plot.plot_amplitudes(data1.get_by_subcarriers())
+                
+                # rec2 = rec.get_copy()
+                # rec2.cut_length_ms(5000, 5000)
+                # data2 = rec2.get_amplitudes()
+                # data2 = so.normalized(data2)
+                # plot = self.plot_amplitudes(data2)
+                # plot.plot_amplitudes(data2.get_by_subcarriers())
+
+
+                # rec.subcarrier_enable([i for i in range(2,15)])
+                
+                # print(so.correlation(rec1.get_amplitudes()))
+
+                # plot = self.plot_correletion(rec1.get_amplitudes())
+                # plot.plot_correlation(so.correlation(rec1.get_amplitudes()))
+
+
+        filter_correlation()
+
+        def filter_breath():
+            for ses in filter(
+                lambda ses: RecordingSessionCollection.applyFilter(
+                    ses,
+                    senders=[("Sender-1", "75eb44")],
+                    receivers=[
+                        ("Recv-2", "73d1b8"),
+                        ("Recv-3", "46e648"),
+                    ],
+                    dates=[datetime.date(2025, 11, 5), datetime.date(2025, 11, 4)],
+                    names=["anthony", "empty"],
+                    modes=["1 person", "empty"],
+                ),
+                session_coll.get_recordings_set(),
+            ):
+                ses.split_by_frequency()
+                ses.split_and_cut_subrecordings(cut_first_ms, total_length_ms)
+                rec = ses.get_recording(freqs=[100])[0].get_amplitudes()
+                # rec.subcarrier_enable([7])
+                recordings.append(rec)
+
+            for data in recordings:
+
+                data = so.normalized(data)
+                data = so.center(data)
+                # data = so.smooth(data)
+
+                plot = self.plot_amplitudes(data, min_y=-1, max_y=1)
+                plot.plot_amplitudes(data.get_by_subcarriers())
+
+                plot = self.plot_amplitudes(data, max_y=60)
+                plot.plot_ftt(so.calculate_ftt(data), x_limit=100)
+
+        # filter_breath()
+
         def session_all():
-            session_coll = RecordingSessionCollection([Path("rec/01_recording/"),Path("rec/02_recording/")], ["anthony", "estelle", "ian", "hussein"], ["empty", "1 person"])
-            session_coll.sort_by_name_asc()
-            
-            sessions = session_coll.get_sessions()
-        
-            for ses in sessions:
+
+            for session in filter(
+                lambda ses: RecordingSessionCollection.applyFilter(
+                    ses,
+                    senders=[("Sender-1", "75eb44")],
+                    receivers=[
+                        ("Recv-1", "46ef78"),
+                        ("Recv-2", "73d1b8"),
+                        ("Recv-3", "46e648"),
+                    ],
+                    dates=[datetime.date(2025, 11, 5), datetime.date(2025, 11, 4)],
+                    names=["anthony", "empty"],
+                    modes=["1 person"],
+                ),
+                session_coll.get_recordings_set(),
+            ):
+                print(session)
+
+            # for ses in session:
+            #     print(ses)
+
+            # exit()
+
+            senders = [("Sender-1", "75eb44")]
+            receivers = [
+                ("Recv-1", "46ef78"),
+                ("Recv-3", "46e648"),
+                ("Recv-2", "73d1b8"),
+            ]
+            dates = [datetime.date(2025, 11, 5), datetime.date(2025, 11, 4)]
+            names = [
+                "hussein",
+                "hussein-anthony",
+                "anthony-hussein",
+                "ian",
+                "ian-estelle",
+                "estelle",
+                "empty",
+                "estelle-ian",
+                "anthony",
+            ]
+            modes = ["2 person", "empty", "1 person"]
+
+            # print(session_coll.get_senders_name_mac())
+            # print(session_coll.get_receivers_name_mac())
+            # print(session_coll.get_datetimes())
+            # print(session_coll.get_dates())
+            # print(session_coll.get_names())
+            # print(session_coll.get_modes())
+
+            recs = session_coll.get_recordings_filtered(
+                dates=[datetime.date(2025, 11, 5)],
+                senders=[("Sender-1", "75eb44")],
+                receivers=[
+                    ("Recv-3", "46e648"),
+                    ("Recv-2", "73d1b8"),
+                ],
+                names=[
+                    "anthony",
+                ],
+                modes=["1 person"],
+            )
+
+            # session_coll.sort_by_name_asc()
+
+            # sessions = session_coll.get_sessions()
+            print(len(recs))
+
+            for ses in recs:
                 print(ses.get_name())
 
                 ses.split_by_frequency()
                 ses.split_and_cut_subrecordings(cut_first_ms, total_length_ms)
 
+                r2 = ses.get_recording(freqs=[100])[0].get_amplitudes()
+                r2.subcarrier_enable([3, 7])
+
                 # r3 = ses.get_recording("75eb44", "46e648", [100])[0].get_amplitudes()
-                r2 = ses.get_recording("75eb44", "73d1b8", [100])[0].get_amplitudes()
+                # r2 = ses.get_recording("75eb44", "73d1b8", [100])[0].get_amplitudes()
                 # r1 = ses.get_recording("75eb44", "46ef78", [100])[0].get_amplitudes()
                 # recordings.extend([r3,r2,r1])
                 recordings.append(r2)
 
             for data in recordings:
-                # plot = self.plot_amplitudes(data, min_y=5, max_y=20)
-                # plot.plot_amplitudes(data.get_by_subcarriers())
+                plot = self.plot_amplitudes(data, min_y=5, max_y=20)
+                plot.plot_amplitudes(data.get_by_subcarriers())
 
-                data = so.normalized(data)
-                plot = self.plot_amplitudes(data, max_y=5)
-                plot.plot_ftt(so.calculate_ftt(data))
+                # data = so.normalized(data)
+                # plot = self.plot_amplitudes(data, max_y=5)
+                # plot.plot_ftt(so.calculate_ftt(data))
 
-        session_all()
+        # session_all()
 
         def session_specific():
             ses_empty_1 = get_prepared_session(
@@ -106,7 +326,6 @@ class MainWindow(QWidget):
 
                 plot = self.plot_amplitudes(data, min_y=5, max_y=20)
                 plot.plot_amplitudes(data.get_by_subcarriers())
-
 
                 # data = so.bandpassed(so.normalized(data), 5, 25, 4)
                 data = so.bandpassed(data, 5, 40, 4)
@@ -143,67 +362,67 @@ class MainWindow(QWidget):
             empty_1_100_r2 = ses_empty_1.get_recording("75eb44", "73d1b8", [100])[
                 0
             ].get_complex_values()
-            anthony_1_100_r2.subcarrier_enable([i for i in range(1,64) if not (i % 8)])
-            empty_1_100_r2.subcarrier_enable([i for i in range(1,64) if not (i % 8)])
+            anthony_1_100_r2.subcarrier_enable([i for i in range(1, 64) if not (i % 8)])
+            empty_1_100_r2.subcarrier_enable([i for i in range(1, 64) if not (i % 8)])
             recordings.append(anthony_1_100_r2)
             recordings.append(empty_1_100_r2)
 
             for data in recordings:
-                plot_real, plot_imanginary = self.plot_complex(data, min_y=-30, max_y=30)               
+                plot_real, plot_imanginary = self.plot_complex(
+                    data, min_y=-30, max_y=30
+                )
                 plot_real.plot_amplitudes(data.get_real_by_subcarriers())
                 plot_imanginary.plot_amplitudes(data.get_imag_by_subcarriers())
-
 
                 # plot = self.plot_amplitudes(data, max_y=5)
                 # plot.plot_ftt(so.calculate_ftt(data))
 
-
         # session_complex()
 
-            # empty_1_100_r3 = ses_empty_1.get_recording("75eb44", "46e648", [100])[
-            #     0
-            # ].get_amplitudes()
-            # recordings.append(empty_1_100_r3)
-            # empty_1_100_r2 = ses_empty_1.get_recording("75eb44", "73d1b8", [100])[
-            #     0
-            # ].get_amplitudes()
-            # recordings.append(empty_1_100_r2)
-            # empty_1_100_r1 = ses_empty_1.get_recording("75eb44", "46ef78", [100])[
-            #     0
-            # ].get_amplitudes()
-            # recordings.append(empty_1_100_r1)
-            # anthony_1_100_r3 = ses_anthony.get_recording("75eb44", "46e648", [100])[
-            #     0
-            # ].get_amplitudes()
-            # # recordings.append(anthony_1_100_r3)
-            # anthony_1_100_r2 = ses_anthony.get_recording("75eb44", "73d1b8", [100])[
-            #     0
-            # ].get_amplitudes()
-            # recordings.append(anthony_1_100_r2)
-            # anthony_1_100_r1 = ses_anthony.get_recording("75eb44", "46ef78", [100])[
-            #     0
-            # ].get_amplitudes()
-            # recordings.append(anthony_1_100_r1)
-            # anthony_100_los = ses_anthony.get_recording("75eb44", "46ef78", [100])[
-            #     0
-            # ].get_amplitudes()
-            # recordings.append(anthony_100_los)
-            # empty_2_100_los = ses_empty_2.get_recording("75eb44", "46ef78", [100])[
-            #     0
-            # ].get_amplitudes()
-            # recordings.append(empty_2_100_los)
-            # empty_1_100_non_los = ses_empty_1.get_recording("75eb44", "73d1b8", [100])[
-            #     0
-            # ].get_amplitudes()
-            # recordings.append(empty_1_100_non_los)
-            # anthony_100_non_los = ses_anthony.get_recording("75eb44", "73d1b8", [100])[
-            #     0
-            # ].get_amplitudes()
-            # recordings.append(anthony_100_non_los)
-            # empty_2_100_non_los = ses_empty_2.get_recording("75eb44", "73d1b8", [100])[
-            #     0
-            # ].get_amplitudes()
-            # recordings.append(empty_2_100_non_los)
+        # empty_1_100_r3 = ses_empty_1.get_recording("75eb44", "46e648", [100])[
+        #     0
+        # ].get_amplitudes()
+        # recordings.append(empty_1_100_r3)
+        # empty_1_100_r2 = ses_empty_1.get_recording("75eb44", "73d1b8", [100])[
+        #     0
+        # ].get_amplitudes()
+        # recordings.append(empty_1_100_r2)
+        # empty_1_100_r1 = ses_empty_1.get_recording("75eb44", "46ef78", [100])[
+        #     0
+        # ].get_amplitudes()
+        # recordings.append(empty_1_100_r1)
+        # anthony_1_100_r3 = ses_anthony.get_recording("75eb44", "46e648", [100])[
+        #     0
+        # ].get_amplitudes()
+        # # recordings.append(anthony_1_100_r3)
+        # anthony_1_100_r2 = ses_anthony.get_recording("75eb44", "73d1b8", [100])[
+        #     0
+        # ].get_amplitudes()
+        # recordings.append(anthony_1_100_r2)
+        # anthony_1_100_r1 = ses_anthony.get_recording("75eb44", "46ef78", [100])[
+        #     0
+        # ].get_amplitudes()
+        # recordings.append(anthony_1_100_r1)
+        # anthony_100_los = ses_anthony.get_recording("75eb44", "46ef78", [100])[
+        #     0
+        # ].get_amplitudes()
+        # recordings.append(anthony_100_los)
+        # empty_2_100_los = ses_empty_2.get_recording("75eb44", "46ef78", [100])[
+        #     0
+        # ].get_amplitudes()
+        # recordings.append(empty_2_100_los)
+        # empty_1_100_non_los = ses_empty_1.get_recording("75eb44", "73d1b8", [100])[
+        #     0
+        # ].get_amplitudes()
+        # recordings.append(empty_1_100_non_los)
+        # anthony_100_non_los = ses_anthony.get_recording("75eb44", "73d1b8", [100])[
+        #     0
+        # ].get_amplitudes()
+        # recordings.append(anthony_100_non_los)
+        # empty_2_100_non_los = ses_empty_2.get_recording("75eb44", "73d1b8", [100])[
+        #     0
+        # ].get_amplitudes()
+        # recordings.append(empty_2_100_non_los)
 
         # bg_100_los = empty_1_100_los - anthony_100_los
         # recordings.append(bg_100_los)
@@ -253,10 +472,10 @@ class MainWindow(QWidget):
         #     plot = self.plot_amplitudes(data, max_y=5)
         #     plot.plot_ftt(so.calculate_ftt(data))
 
-            # plot = self.plot_amplitudes(amps, max_y=80)
-            # plot.plot_ftt(so.calculate_ftt(amps), x_limit=5)
-            # print(so.calculate_ftt(amps))
-            # self.plot_amplitudes(amps, so.calculate_ftt(amps))
+        # plot = self.plot_amplitudes(amps, max_y=80)
+        # plot.plot_ftt(so.calculate_ftt(amps), x_limit=5)
+        # print(so.calculate_ftt(amps))
+        # self.plot_amplitudes(amps, so.calculate_ftt(amps))
 
         # session_anthony_2 = RecordingSession(
         #     Path("rec/20251021_150423_Anthony-1 person_static")
@@ -383,6 +602,12 @@ class MainWindow(QWidget):
         self.plots.append(plot_complex)
         self.scroll_layout.addWidget(plot_complex)
         return plot_real, plot_complex
+
+    def plot_correletion(self, data_in):
+        plot = CorrelationPlot(data_in)
+        self.plots.append(plot)
+        self.scroll_layout.addWidget(plot)
+        return plot
 
 def main():
     app = QApplication(sys.argv)
