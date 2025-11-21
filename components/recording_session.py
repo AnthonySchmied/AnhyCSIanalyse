@@ -118,6 +118,9 @@ class RecordingSession:
 
     def get_date(self):
         return self._datetime.date()
+    
+    def get_time(self):
+        return self._datetime.time()
 
     def get_name(self):
         return self._name

@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from scipy.signal import butter, filtfilt
 from scipy.signal import medfilt
+from sklearn.model_selection import train_test_split
 
 # def _normalize_df(df, columns):
 #     max_value = df[columns].to_numpy().max()
@@ -79,7 +80,7 @@ def _hampel_df(df, columns, window_size, n_sigmas):
 def _smooth_df(df, columns):
     filtered_df = df.copy()
     for col in columns:
-        filtered_df[col] = medfilt(filtered_df[col], kernel_size=37)
+        filtered_df[col] = medfilt(filtered_df[col], kernel_size=77)
     return filtered_df
 
 
@@ -145,13 +146,19 @@ def _compute_abs(df, columns):
     abs_df = abs(abs_df[columns])
     return abs_df
 
-def _compute_correlation_matrix(df1, columns, df2):
-    class corr_result():
+class corr_result:
         def __init__(self, matrix):
-            self.matrix = matrix
+            corr = matrix
+            for col in corr.columns:
+                corr = corr.rename(columns={col: col.split('_')[2]})
+                corr = corr.rename(index={col: col.split('_')[2]})
+            self.matrix = corr
             self.index = np.mean(self.matrix)
+            self.max = self.matrix.max()
+            self.min = self.matrix.min()
             print(self.index)
 
+def _compute_pearson_correlation_matrix(df1, columns, df2):
     if not df2 is None:
         df1_sel = df1[columns]
         df2_sel = df2[columns]
@@ -161,22 +168,72 @@ def _compute_correlation_matrix(df1, columns, df2):
         df2_sel = df2_sel.iloc[:min_len]
 
         # Concatenate for np.corrcoef
-        combined = np.concatenate([df1_sel.values.T, df2_sel.values.T], axis=0)
-        corr_matrix = np.corrcoef(combined)
+        # combined = np.concatenate([df1_sel.values.T, df2_sel.values.T], axis=0)
+        # corr_matrix = np.corrcoef(combined)
 
-        n1 = df1_sel.shape[1]
-        n2 = df2_sel.shape[1]
+        corr = pd.DataFrame(
+            [[df1_sel[c1].corr(df2_sel[c2]) for c2 in df2_sel.columns] for c1 in df1_sel.columns],
+            index=df1.columns,
+            columns=df2.columns,
+        )
+        print(corr)
 
-        return corr_result(corr_matrix[:n1, n1:n1+n2])
+        # n1 = df1_sel.shape[1]
+        # n2 = df2_sel.shape[1]
+        # print(corr)
+        # print("coor")
+
+        # return corr_result(corr_matrix[:n1, n1 : n1 + n2])
+        
+        return corr_result(corr)
+    
         # pairwise_corr_abs = np.abs(pairwise_corr)
         # result.index = np.mean(result.matrix)
         # return result
     else:
-        return corr_result(df1[columns].corr())
+        corr = df1[columns].corr()
+        return corr_result(corr)
         # result.index = np.mean(result.matrix)
         # return result
 
+def _compute_correlation(df1, columns):
+    # m = [df1[columns].iloc[i].tolist() for i in range(len(df1))]
+    with np.errstate(invalid='raise'):
+        m = df1[columns].to_numpy()
+        corr = m.T @ m
+        corr_pd = pd.DataFrame(corr, columns=columns, index=columns)
+        print(corr_pd)
+        return corr_result(corr_pd)
+
+class pca_result:
+    def __init__(self, X_pca, explained_variance, model, label):
+        self.X_pca = X_pca
+        self.explained_variance = explained_variance
+        self.model = model
+        self.label = label
+
+def _compute_pca(df, columns, label, n_components=2):
+
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.decomposition import PCA
+        
+    X = df[columns].values
+
+    X_scaled = StandardScaler().fit_transform(X)
+    
+    pca = PCA(n_components=n_components)
+    X_pca = pca.fit_transform(X_scaled)
+
+    explained_variance = pca.explained_variance_ratio_
+    print("Explained variance ratio:", explained_variance)
+
+    return pca_result(X_pca, explained_variance, pca, label)
+
 class SensOps:
+    @staticmethod
+    def mask(df):
+        return df[df["mask"]].copy()
+
     @staticmethod
     def normalized(data_in):
         normalized_df = _normalize_df(data_in.df, data_in.columns)
@@ -216,7 +273,7 @@ class SensOps:
         return data_in.__class__(filtered_df, data_in.recording, data_in.columns)
 
     @staticmethod
-    def center(data_in):
+    def centered(data_in):
         centered_df = _center_df(data_in.df, data_in.columns)
         return data_in.__class__(centered_df, data_in.recording, data_in.columns)
 
@@ -249,8 +306,20 @@ class SensOps:
         )
 
     @staticmethod
-    def correlation(data1_in, data2_in=None):
+    def pearson_correlation(data1_in, data2_in=None):
         if data2_in is not None:
-            return _compute_correlation_matrix(data1_in.df, data1_in.columns, data2_in.df)
+            return _compute_pearson_correlation_matrix(
+                SensOps.mask(data1_in.df), data1_in.columns, SensOps.mask(data2_in.df)
+            )
         else:
-            return _compute_correlation_matrix(data1_in.df, data1_in.columns, None)
+            return _compute_pearson_correlation_matrix(
+                SensOps.mask(data1_in.df), data1_in.columns, None
+            )
+
+    @staticmethod
+    def correlation(data1_in, data2_in=None):
+        return _compute_correlation(SensOps.mask(data1_in.df), data1_in.columns)
+    
+    @staticmethod
+    def pca(data_in):
+        return _compute_pca(SensOps.mask(data_in.df), data_in.columns, data_in.recording.get_label())

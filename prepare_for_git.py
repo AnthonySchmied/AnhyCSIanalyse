@@ -4,7 +4,7 @@ import io
 import sys
 import pandas as pd
 
-dir = Path("rec/02_recording")
+dir = Path("rec/04_recording")
 
 recording_sessions = []
 

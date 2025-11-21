@@ -11,6 +11,7 @@ from widgets.amplitude_plot import AmplitudePlot
 from widgets.correlation_plot import CorrelationPlot
 import threading
 
+
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
@@ -64,6 +65,52 @@ class MainWindow(QWidget):
             [Path("rec/01_recording/"), Path("rec/02_recording/")]
         )
 
+        
+
+        def filter_pearson_correlation():
+            for ses in filter(
+                lambda ses: RecordingSessionCollection.applyFilter(
+                    ses,
+                    senders=[("Sender-1", "75eb44")],
+                    receivers=[
+                        # ("Recv-1", "46ef78"),
+                        ("Recv-3", "46e648"),
+                        # ("Recv-2", "73d1b8"),
+                    ],
+                    # dates=[datetime.date(2025, 11, 4)],
+                    dates=[datetime.date(2025, 11, 4), datetime.date(2025, 11, 5)],
+                    # names=["anthony", "ian", "empty", "estelle", "hussein"],
+                    names = [
+                        "hussein",
+                        "hussein-anthony",
+                        "anthony-hussein",
+                        "ian",
+                        "ian-estelle",
+                        "estelle",
+                        "empty",
+                        "estelle-ian",
+                        "anthony",
+                    ],
+                    # names=["anthony", "ian", "empty"],
+                    # modes=["empty", "1 person", "2 person"],
+                    modes=["empty", "1 person", "2 person"],
+                ),
+                session_coll.get_recordings_set(),
+            ):
+                ses.split_by_frequency()
+                rec = ses.get_recording(freqs=[100])[0]
+                plot = self.plot_correletion(rec)
+
+                for i in range(1, 8):
+                    rec.set_mask_frames_at_time(0, 30*i, 200)
+                    data = rec.get_amplitudes()
+                    data = so.normalized(data)
+                    data = so.smooth(data)
+                    data = so.pearson_correlation(data)
+                    plot.plot_correlation(data)
+
+        # filter_pearson_correlation()
+
         def filter_correlation():
             x = 0
 
@@ -74,42 +121,76 @@ class MainWindow(QWidget):
                     ses,
                     senders=[("Sender-1", "75eb44")],
                     receivers=[
-                        ('Recv-1', '46ef78'),
+                        ("Recv-1", "46ef78"),
                         ("Recv-3", "46e648"),
                         ("Recv-2", "73d1b8"),
                     ],
-                    dates=[datetime.date(2025, 11, 5)],
-                    names=["anthony", "ian", "estelle", "hussein", "empty"],
-                    modes=["1 person", "empty"],
+                    dates=[datetime.date(2025, 11, 4)],
+                    # dates=[datetime.date(2025, 11, 4), datetime.date(2025, 11, 5)],
+                    # names=["anthony", "ian", "empty", "estelle", "hussein"],
+                    # names = [
+                    #     "hussein",
+                    #     "hussein-anthony",
+                    #     "anthony-hussein",
+                    #     "ian",
+                    #     "ian-estelle",
+                    #     "estelle",
+                    #     "empty",
+                    #     "estelle-ian",
+                    #     "anthony",
+                    # ],
+                    names=["anthony", "ian", "empty"],
+                    # modes=["empty", "1 person", "2 person"],
+                    modes=["empty", "1 person"],
                 ),
                 session_coll.get_recordings_set(),
             ):
                 ses.split_by_frequency()
-                rec = ses.get_recording(freqs=[50])[0]
+                rec = ses.get_recording(freqs=[100])[0]
+                # rec1 = rec.get_copy()
 
                 # rec.subcarrier_enable([i for i in range(2,15)])
-
-                # rec0 = rec.get_copy()
-                # rec0.cut_length_ms(0, 5000)
-                # data = rec0.get_amplitudes()
-                # data = so.normalized(data)
-                # plot = self.plot_amplitudes(data)
-                # plot.plot_amplitudes(data.get_by_subcarriers())
 
                 plot = self.plot_correletion(rec)
 
                 def plot_rec(rec):
-                    last_rec = rec.get_copy()
-                    for i in range(1,7):
-                        r = rec.get_copy()
-                        r.cut_length_ms(11000, (i*30)+30)
+                    # rec.cut_length_ms(1000, 1000)
+                    # rec.set_mask_frames_at_time(0, 100)
+                    # data = so.normalized(rec.get_amplitudes())
+                    # plot = self.plot_amplitudes(data, min_y=-1, max_y=1)
+                    # plot.plot_amplitudes(data.get_by_subcarriers())
 
-                        # so.correlation(rec1.get_amplitudes())
-                        # plot.plot_correlation(so.correlation(last_rec.get_amplitudes(), r.get_amplitudes()))
-                        plot.plot_correlation(so.correlation(r.get_amplitudes()))
-                        last_rec = r
+                    # last_rec = rec.get_copy()
+                    for i in range(1, 6):
+                        # rec.set_mask_frames_at_time(0, 50*i, 100)
+                        # data = so.normalized(rec.get_amplitudes())
+                        # plot1 = self.plot_amplitudes(data, min_y=-1, max_y=1)
+                        # plot1.plot_amplitudes(data.get_by_subcarriers())
+
+                        rec.set_mask_frames_at_time(0, i*50, 50)
+                        # rec1.set_mask_frames_at_time(1000,3,2)
+                        # amps2 = rec.get_amplitudes()
+                        # plot.plot_correlation(so.correlation(amps1, amps2))
+                        data = rec.get_amplitudes()
+                        data = so.normalized(data)
+                        # data = so.center(data)
+                        # data = so.smooth(data)
+                        data = so.correlation(data)
+                        # exit()
+                        plot.plot_correlation(data)
+                        # plot.plot_correlation(so.correlation(rec.get_amplitudes()))
+
+                    #     # r = rec.get_copy()
+                    #     # r.cut_length_ms(11000, (i*30)+30)
+
+                    #     # so.correlation(rec1.get_amplitudes())
+                    #     # plot.plot_correlation(so.correlation(last_rec.get_amplitudes(), r.get_amplitudes()))
+                    #     rec.set_mask_frames_at_time(0, i)
+                    # plot.plot_correlation(so.correlation(rec.get_amplitudes()))
+                    # last_rec = r
 
                 plot_rec(rec)
+                # break               
 
                 # # Create a new thread for plotting correlation
                 # t = threading.Thread(target=plot_rec, args=(rec,))
@@ -120,62 +201,59 @@ class MainWindow(QWidget):
             # for t in threads:
             #     t.join()
 
-                # r0 = rec.get_copy()
-                # r0.cut_length_ms(100, 100)
-                # # r0_amps = r0
-                # # plot.plot_correlation(so.correlation(r0_amps))
+            # r0 = rec.get_copy()
+            # r0.cut_length_ms(100, 100)
+            # # r0_amps = r0
+            # # plot.plot_correlation(so.correlation(r0_amps))
 
-                # last_rec = r0
+            # last_rec = r0
 
-                # for i in range(1,10):
-                #     r = rec.get_copy()
-                #     r.cut_length_ms((100*i)+1000, 100)
-                    
-                #     # print(i*10000)
-                #     # print((i+1)*10000)
+            # for i in range(1,10):
+            #     r = rec.get_copy()
+            #     r.cut_length_ms((100*i)+1000, 100)
 
-                #     # so.correlation(rec1.get_amplitudes())
-                #     plot.plot_correlation(so.correlation(last_rec.get_amplitudes(), r.get_amplitudes()))
-                #     # plot.plot_correlation(so.correlation(r0_amps, r.get_amplitudes()))
-                #     last_rec = r
+            #     # print(i*10000)
+            #     # print((i+1)*10000)
 
-                # x += 1
-                # if x == 2:
-                #     break
+            #     # so.correlation(rec1.get_amplitudes())
+            #     plot.plot_correlation(so.correlation(last_rec.get_amplitudes(), r.get_amplitudes()))
+            #     # plot.plot_correlation(so.correlation(r0_amps, r.get_amplitudes()))
+            #     last_rec = r
 
+            # x += 1
+            # if x == 2:
+            #     break
 
-                # break
-                # rec0 = rec.get_copy()
-                # rec0.cut_length_ms(0, 10000)
-                # data = rec0.get_amplitudes()
-                # data = so.normalized(data)
-                # plot = self.plot_amplitudes(data)
-                # plot.plot_amplitudes(data.get_by_subcarriers())
+            # break
+            # rec0 = rec.get_copy()
+            # rec0.cut_length_ms(0, 10000)
+            # data = rec0.get_amplitudes()
+            # data = so.normalized(data)
+            # plot = self.plot_amplitudes(data)
+            # plot.plot_amplitudes(data.get_by_subcarriers())
 
-                # rec1 = rec.get_copy()
-                # rec1.cut_length_ms(0, 5000)
-                # data1 = rec1.get_amplitudes()
-                # data1 = so.normalized(data1)
-                # plot = self.plot_amplitudes(data1)
-                # plot.plot_amplitudes(data1.get_by_subcarriers())
-                
-                # rec2 = rec.get_copy()
-                # rec2.cut_length_ms(5000, 5000)
-                # data2 = rec2.get_amplitudes()
-                # data2 = so.normalized(data2)
-                # plot = self.plot_amplitudes(data2)
-                # plot.plot_amplitudes(data2.get_by_subcarriers())
+            # rec1 = rec.get_copy()
+            # rec1.cut_length_ms(0, 5000)
+            # data1 = rec1.get_amplitudes()
+            # data1 = so.normalized(data1)
+            # plot = self.plot_amplitudes(data1)
+            # plot.plot_amplitudes(data1.get_by_subcarriers())
 
+            # rec2 = rec.get_copy()
+            # rec2.cut_length_ms(5000, 5000)
+            # data2 = rec2.get_amplitudes()
+            # data2 = so.normalized(data2)
+            # plot = self.plot_amplitudes(data2)
+            # plot.plot_amplitudes(data2.get_by_subcarriers())
 
-                # rec.subcarrier_enable([i for i in range(2,15)])
-                
-                # print(so.correlation(rec1.get_amplitudes()))
+            # rec.subcarrier_enable([i for i in range(2,15)])
 
-                # plot = self.plot_correletion(rec1.get_amplitudes())
-                # plot.plot_correlation(so.correlation(rec1.get_amplitudes()))
+            # print(so.correlation(rec1.get_amplitudes()))
 
+            # plot = self.plot_correletion(rec1.get_amplitudes())
+            # plot.plot_correlation(so.correlation(rec1.get_amplitudes()))
 
-        filter_correlation()
+        # filter_correlation()
 
         def filter_breath():
             for ses in filter(
@@ -608,6 +686,7 @@ class MainWindow(QWidget):
         self.plots.append(plot)
         self.scroll_layout.addWidget(plot)
         return plot
+
 
 def main():
     app = QApplication(sys.argv)

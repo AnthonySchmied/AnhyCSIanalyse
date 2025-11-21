@@ -1,5 +1,30 @@
 from components.sens_ops import _normalize_df, _standardize_df, _scale_df, _hampel_df
 
+from functools import wraps
+
+def masked_only(func):
+    """Decorator that makes a method operate only on masked rows of self.df."""
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        if not hasattr(self, "df"):
+            raise AttributeError("Instance has no attribute 'df'")
+        if "mask" not in self.df.columns:
+            raise KeyError("'mask' column not found in DataFrame")
+
+        # Save original df
+        original_df = self.df
+
+        # Replace df with masked version
+        self.df = self.df[self.df["mask"]].copy()
+
+        try:
+            result = func(self, *args, **kwargs)
+        finally:
+            # Restore original df no matter what
+            self.df = original_df
+
+        return result
+    return wrapper
 
 class SignalData:
     def __init__(self, df, rec=None):
@@ -57,22 +82,27 @@ class SignalData:
             return self.__class__(new_df, self.recording, common_cols)
         else:
             return NotImplemented
-
+    
+    @masked_only
     def get_by_subcarriers(self):
         to_return = {col: self.df[col].tolist() for col in self.columns}
         return to_return
 
+    @masked_only
     def normalize(self):
         self.df = _normalize_df(self.df, self.columns)
         return self
 
+    @masked_only
     def standardize(self):
         self.df = _standardize_df(self.df, self.columns)
         return self
 
+    @masked_only
     def scale(self):
         self.df = _scale_df(self.df, self.columns)
         return self
 
+    @masked_only
     def hampel(self, window_size, n_sigmas):
         self.df = _hampel_df(self.df, self.columns, window_size, n_sigmas)

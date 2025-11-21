@@ -1,6 +1,5 @@
 from components.recording_session import RecordingSession
 
-
 class RecordingSessionCollection:
     def __init__(self, paths: list):
         self._sessions = []

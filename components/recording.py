@@ -2,12 +2,14 @@ from pathlib import Path
 from components.amplitudes import Amplitudes
 from components.phases import Phases
 from components.complex_values import ComplexValues
+from components.metadata_unpack import MetadataUnpack
 import pandas as pd
 import numpy as np
 import datetime
 import ast
 import re
 
+FORCE_READ_CSV = True
 
 def ensure_data_loaded(func):
     def wrapper(self, *args, **kwargs):
@@ -16,43 +18,6 @@ def ensure_data_loaded(func):
         return func(self, *args, **kwargs)
 
     return wrapper
-
-
-class _ReturnAmplitudesMinix:
-    @ensure_data_loaded
-    def get_amplitudes_per_line(self):
-        # return dict with id key and values list
-        if self._amplitudes is None and not self.df.empty:
-            self._amplitudes = Amplitudes(self.df)
-
-            # self._amplitudes = {}
-            # subcarry_count = len(self.df.get("amplitude")[0])
-            # for subcarry_index in range(subcarry_count):
-            #     self._amplitudes[subcarry_index + 1] = []
-            # for i in range(len(self.df)):
-            #     for subcarry_index in range(subcarry_count):
-            #         if not subcarry_index + 1 in self._remove_subcarrier_id:
-            #             self._amplitudes[subcarry_index + 1].append(
-            #                 self.df.get("amplitude")[i][subcarry_index]
-            #             )
-
-        return self._amplitudes.get_amplitudes_per_line()
-
-    def get_amplitudes_per_rxtime(self):
-        # return dict with time key and values list
-        if self._amplitudes is None and not self.df.empty:
-            self._amplitudes = Amplitudes(self.df)
-        return self._amplitudes.get_amplitudes_per_rxtime()
-
-    def get_amplitudes_per_line_normalized(self):
-        if self._amplitudes is None and not self.df.empty:
-            self._amplitudes = Amplitudes(self.df)
-        return self.get_amplitudes_per_line_normalized()
-
-    def get_amplitudes_per_rxtime_normalized(self):
-        if self._amplitudes is None and not self.df.empty:
-            self._amplitudes = Amplitudes(self.df)
-        return self.get_amplitudes_per_rxtime_normalized()
 
 
 class _InitRecordingMinix:
@@ -97,87 +62,109 @@ class _ReadRecordingMinix:
             self._mac_sender = None
             self._name_sender = None
 
+    def _read_from_pickle(self):
+        try:
+            pickle_path = self.get_pickle_path()
+            print(f"Loading from pickle: {pickle_path}")
+            self.df = pd.read_pickle(pickle_path)
+
+            # data_bundle = joblib.load("dataset.joblib")
+            # self.df = data_bundle["main"]
+            # if len(data_bundle["sub"].keys()) > 0:
+            #     self._subrecordings_split_by_freq = []
+            # for key in data_bundle["sub"].keys():
+            #     sub_rec = Recording(
+            #             self.session,
+            #             self._path,
+            #             data_bundle["sub"][key]
+            #         )
+            #     print(sub_rec.df.head())
+            #     self._subrecordings_split_by_freq.append(sub_rec)
+        except Exception as e:
+            print(f"Error loading pickle: {e}, reparsing CSV...")
+            raise e
+
+    def _save_to_pickle(self):
+        # data = {"main": self.df, "sub": {}}
+        # if self._subrecordings_split_by_freq is not None:
+        #     for subrec in self._subrecordings_split_by_freq:
+        #         data["sub"][int(subrec.get_frequencies()[0])] = subrec.df
+        # joblib.dump(data, self.get_pickle_path())
+        
+        self.df.to_pickle(self.get_pickle_path())
+
+    def _read_from_csv(self):
+        # only parse file the first time -> pickle keeps format
+        print(f"load from csv: {self._path}")
+        cols = [
+            "timestamp_pc",
+            "receiver_mac",
+            "sender_mac",
+            "tx_counter",
+            "rx_counter",
+            "tx_time",
+            "rx_time",
+            "tx_frequency",
+            "rssi",
+            "noise_floor",
+            "raw_data",
+            "amplitude",
+            "phase",
+        ]
+
+        try:
+            self.df = pd.read_csv(self._path, names=cols, header=0, dtype=str)
+        except Exception as e:
+            print(f"Error reading CSV: {e}")
+            return
+
+        # Check if last row contains the marker "END OF RECORDING"
+        if not self.df.iloc[-1].astype(str).str.contains("END OF RECORDING").any():
+            print(f"\n path: {self._path} \n")
+            raise Exception("DataFrame invalid: no END OF RECORDING marker.")
+
+        numeric_cols = [
+            "tx_counter",
+            "rx_counter",
+            "tx_time",
+            "rx_time",
+            "tx_frequency",
+            "rssi",
+            "noise_floor",
+        ]
+        self.df[numeric_cols] = self.df[numeric_cols].apply(
+            pd.to_numeric, errors="coerce"
+        )
+        self.df["rx_time"] = pd.to_numeric(self.df["rx_time"], errors="coerce").astype(
+            "Int64"
+        )
+        self.df["tx_time"] = pd.to_numeric(self.df["tx_time"], errors="coerce").astype(
+            "Int64"
+        )
+        self.df["mask"] = True
+        self._update_time()
+        self.df = self.df[self.df["tx_frequency"].between(0, 500)]
+        self.df = self.df[self.df["tx_counter"].between(0, 1e7)]
+        self.df = self.df[self.df["rx_counter"].between(0, 1e7)]
+        self.df["amplitude"] = self.df["amplitude"].apply(ast.literal_eval)
+        self.df["phase"] = self.df["phase"].apply(ast.literal_eval)
+        self.df["raw_data"] = self.df["raw_data"].apply(ast.literal_eval)
+        self.df["complex"] = [
+            ([complex(row[i], row[i + 1]) for i in range(0, len(row), 2)])
+            for row in self.df["raw_data"]
+        ]
+        self.df.dropna(subset=cols, inplace=True)
+        self.df.reset_index(drop=True, inplace=True)
+        self._save_to_pickle()
+
     def read_csv_santizied(self):
-        pickle_path = Path(self._path.parent, "." + self._path.stem + ".pkl")
-
-        def read_pickle():
-            try:
-                print(f"Loading from pickle: {pickle_path}")
-                self.df = pd.read_pickle(pickle_path)
-                if "complex" not in self.df.columns:
-                    read_csv()
-            except Exception as e:
-                print(f"Error loading pickle: {e}, reparsing CSV...")
-                raise e
-
-        def read_csv():
-            # only parse file the first time -> pickle keeps format
-            print(f"load from csv: {self._path}")
-            cols = [
-                "timestamp_pc",
-                "receiver_mac",
-                "sender_mac",
-                "tx_counter",
-                "rx_counter",
-                "tx_time",
-                "rx_time",
-                "tx_frequency",
-                "rssi",
-                "noise_floor",
-                "raw_data",
-                "amplitude",
-                "phase",
-            ]
-
-            try:
-                self.df = pd.read_csv(self._path, names=cols, header=0, dtype=str)
-            except Exception as e:
-                print(f"Error reading CSV: {e}")
-                return
-
-            # Check if last row contains the marker "END OF RECORDING"
-            if not self.df.iloc[-1].astype(str).str.contains("END OF RECORDING").any():
-                print(f"\n path: {self._path} \n")
-                raise Exception("DataFrame invalid: no END OF RECORDING marker.")
-
-            numeric_cols = [
-                "tx_counter",
-                "rx_counter",
-                "tx_time",
-                "rx_time",
-                "tx_frequency",
-                "rssi",
-                "noise_floor",
-            ]
-            self.df[numeric_cols] = self.df[numeric_cols].apply(
-                pd.to_numeric, errors="coerce"
-            )
-            self.df["rx_time"] = pd.to_numeric(
-                self.df["rx_time"], errors="coerce"
-            ).astype("Int64")
-            self.df["tx_time"] = pd.to_numeric(
-                self.df["tx_time"], errors="coerce"
-            ).astype("Int64")
-            self.df = self.df[self.df["tx_frequency"].between(0, 500)]
-            self.df = self.df[self.df["tx_counter"].between(0, 1e7)]
-            self.df = self.df[self.df["rx_counter"].between(0, 1e7)]
-            self.df["amplitude"] = self.df["amplitude"].apply(ast.literal_eval)
-            self.df["phase"] = self.df["phase"].apply(ast.literal_eval)
-            self.df["raw_data"] = self.df["raw_data"].apply(ast.literal_eval)
-            self.df["complex"] = [
-                ([complex(row[i], row[i + 1]) for i in range(0, len(row), 2)])
-                for row in self.df["raw_data"]
-            ]
-            self.df.dropna(subset=cols, inplace=True)
-            self.df.reset_index(drop=True, inplace=True)
-            self.df.to_pickle(pickle_path)
-
-        if pickle_path.is_file():
-        # if False:
-            read_pickle()
+        if not FORCE_READ_CSV and self.get_pickle_path().is_file():
+            self._read_from_pickle()
         else:
-            read_csv()
+            self._read_from_csv()
 
+    def get_pickle_path(self):
+        return Path(self._path.parent, "." + self._path.stem + ".pkl")
 
 class _MetaDataRecordingMinix:
     @ensure_data_loaded
@@ -391,6 +378,9 @@ class _MetaDataRecordingMinix:
     def get_date(self):
         return self.session.get_date()
 
+    def get_time(self):
+        return self.session.get_time()
+
     def get_name(self):
         return self.session.get_name()
 
@@ -399,6 +389,9 @@ class _MetaDataRecordingMinix:
 
     def get_id(self):
         return f"{self.get_datetime()} {self.get_name()} {self.get_frequencies()} {self.get_receivers_name_mac()[0]}"
+
+    def get_label(self):
+        return f"{MetadataUnpack.names_pack([self.get_name()])}_{MetadataUnpack.days_pack([self.get_date()])}"
 
 
 class _TreeTraversaRecordinglMinix:
@@ -499,6 +492,8 @@ class _AlterRecordingMinix:
             elif drop_first_last and len(self._subrecordings_split_by_freq) >= 2:
                 self._subrecordings_split_by_freq.pop(0)
                 self._subrecordings_split_by_freq.pop()
+            self._update_time()
+            self._save_to_pickle()
 
     @ensure_data_loaded
     def remove_subcarrier(self, index: list):
@@ -509,7 +504,7 @@ class _AlterRecordingMinix:
 
     @ensure_data_loaded
     def cut_length_ms(self, front_padding_ms, length_ms):
-        if not self.df.empty and self.get_duration() > front_padding_ms + length_ms:           
+        if not self.df.empty and self.get_duration() > front_padding_ms + length_ms:
             time_slice_begin = self.df.iloc[0]["rx_time"] + (front_padding_ms * 10**3)
             time_slice_end = time_slice_begin + (length_ms * 10**3)
             df_cut_front = self.df[self.df["rx_time"] >= time_slice_begin].reset_index(
@@ -518,12 +513,37 @@ class _AlterRecordingMinix:
             self.df = df_cut_front[
                 df_cut_front["rx_time"] <= time_slice_end
             ].reset_index(drop=True)
+            self._update_time()
             self.reset()
 
     def split_and_cut_subrecordings(self, cut_first_ms, total_length):
         self.split_by_frequency()
         for sub_rec in self.get_subrecordings():
             sub_rec.cut_length_ms(cut_first_ms, total_length)
+
+    @ensure_data_loaded
+    def set_mask_frames_at_time(self, time, frames_offset_count=0, frames_count=1):
+        self.df["mask"] = False
+        # print(self.df.loc[-4:, ["rx_time", "time", "mask", "tx_frequency"]])
+        self._update_time()
+        # print(self.df.loc[-4:, ["rx_time", "time", "mask", "tx_frequency"]])
+
+        mask_indices = self.df.index[self.df["time"] >= (time * 10**3)].tolist()
+        # print(mask_indices[:5])
+        mask_indices = mask_indices[frames_offset_count:]
+        # print("indeces")
+        # print(mask_indices[:5])
+        # print(time)
+        for idx in mask_indices[:frames_count]:
+            self.df.at[idx, "mask"] = True
+            # print(self.df.loc[idx, ["rx_time", "time", "mask", "tx_frequency"]])
+
+    def _update_time(self):
+        self.df["time"] = self.df["rx_time"] - self.df["rx_time"].iloc[0]
+
+        # print(self.get_frequencies())
+        # print(self.df.loc[:4, ["rx_time", "time", "mask", "tx_frequency"]])
+        # print(self.df.loc[-4:, ["rx_time", "time", "mask", "tx_frequency"]])
 
 
 class _OperatorMinix:
@@ -592,13 +612,19 @@ class Recording(
         self.session = session
         self._path = path
         self.df = df
+        if df is not None:
+            self.df.reset_index(drop=True, inplace=True)
         self.parse_sender_receiver()
         self.reset()
         self._no_tx_counter = None
         self._remove_subcarrier_id = []
 
+        # self.split_by_frequency()
+
     def read_from_storage(self):
+        time1 = datetime.datetime.now()
         self.read_csv_santizied()
+        print(f"took: {datetime.datetime.now()-time1} loading {self.get_pickle_path()}")
 
     @ensure_data_loaded
     def __str__(self):
