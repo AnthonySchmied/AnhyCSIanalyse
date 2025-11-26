@@ -24,9 +24,11 @@ class _CorrelationPlotRecording:
         return len(self._heatmaps)
 
 class CorrelationPlot():
-    def __init__(self, rec=None, width=12, height=3):
+    def __init__(self, rows):
+        self._recordings = [_CorrelationPlotRecording() for _ in range(rows)]
 
-        self._recordings = []
+    def append_by_idx(self, idx, data):
+        self._recordings[idx].append(data)
 
     def add_recording(self, rec):
         sub_rec = _CorrelationPlotRecording(rec)

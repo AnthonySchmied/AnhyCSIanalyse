@@ -1,0 +1,64 @@
+from datetime import datetime
+
+from components.metadata_unpack import MetadataUnpack as MDP
+
+DEBUG = True
+
+
+class _BatchSes:
+    def __init__(self, ses):
+        self._ses = ses
+
+    def load_from_storage_freq(self, freq):
+        self._rec = self._ses.get_recording_freq(freq)
+
+    def get_masked_amplitude(self, start_time, offset, length):
+        if DEBUG:
+            print(f"time: {start_time} - offset: {offset} - length: {length}")
+        self._rec.set_mask_frames_at_time(start_time, offset, length)
+        return self._rec.get_amplitudes()
+
+    def get_days(self):
+        return self._rec.get_date_packed()
+
+    def get_names(self):
+        return self._rec.get_name_packed()
+
+    def get_recvs(self):
+        return self._rec.get_recv_packed()
+
+    def get_datetime(self):
+        return self._rec.get_datetime()
+
+
+class Batch:
+    def __init__(self, recs):
+        recs.sort(
+            key=lambda item: item.get_receivers_name_mac()[0],
+            reverse=True,
+        )
+        self._recs = [_BatchSes(rec) for rec in recs]
+        self._id = None
+
+    def load_from_storage_freq(self, freq):
+        time = datetime.now()
+        for rec in self._recs:
+            rec.load_from_storage_freq(freq)
+        print(f"loaded batch in {datetime.now()-time}")
+
+    def get_masked_amplitude(self, start_time, offset, length):
+        return [
+            rec.get_masked_amplitude(start_time, offset, length) for rec in self._recs
+        ]
+
+    def __len__(self):
+        return len(self._recs)
+
+    def get_id(self):
+        if self._id is None:
+            days = MDP.unique([ses.get_days() for ses in self._recs])
+            names = MDP.unique([ses.get_names() for ses in self._recs])
+            recvs = MDP.unique([ses.get_recvs() for ses in self._recs])
+            datetimes = MDP.unique([ses.get_datetime() for ses in self._recs])
+            self._id = f"{MDP.days_key_from_packed(days)}-{MDP.names_key_from_packed(names)}-{MDP.receivers_key_from_packed(recvs)}-{str(datetimes[0])}"
+        return self._id

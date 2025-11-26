@@ -3,6 +3,7 @@ import numpy as np
 from scipy.signal import butter, filtfilt
 from scipy.signal import medfilt
 from sklearn.model_selection import train_test_split
+from components.plot_container import _HeatmapPlotResult, _PointcloudPlotResult
 
 # def _normalize_df(df, columns):
 #     max_value = df[columns].to_numpy().max()
@@ -146,17 +147,17 @@ def _compute_abs(df, columns):
     abs_df = abs(abs_df[columns])
     return abs_df
 
-class corr_result:
-        def __init__(self, matrix):
-            corr = matrix
-            for col in corr.columns:
-                corr = corr.rename(columns={col: col.split('_')[2]})
-                corr = corr.rename(index={col: col.split('_')[2]})
-            self.matrix = corr
-            self.index = np.mean(self.matrix)
-            self.max = self.matrix.max()
-            self.min = self.matrix.min()
-            print(self.index)
+# class corr_result:
+#         def __init__(self, matrix):
+#             corr = matrix
+#             for col in corr.columns:
+#                 corr = corr.rename(columns={col: col.split('_')[2]})
+#                 corr = corr.rename(index={col: col.split('_')[2]})
+#             self.matrix = corr
+#             self.index = np.mean(self.matrix)
+#             self.max = self.matrix.max()
+#             self.min = self.matrix.min()
+#             print(self.index)
 
 def _compute_pearson_correlation_matrix(df1, columns, df2):
     if not df2 is None:
@@ -185,14 +186,14 @@ def _compute_pearson_correlation_matrix(df1, columns, df2):
 
         # return corr_result(corr_matrix[:n1, n1 : n1 + n2])
         
-        return corr_result(corr)
+        return _HeatmapPlotResult(corr)
     
         # pairwise_corr_abs = np.abs(pairwise_corr)
         # result.index = np.mean(result.matrix)
         # return result
     else:
         corr = df1[columns].corr()
-        return corr_result(corr)
+        return _HeatmapPlotResult(corr)
         # result.index = np.mean(result.matrix)
         # return result
 
@@ -203,14 +204,14 @@ def _compute_correlation(df1, columns):
         corr = m.T @ m
         corr_pd = pd.DataFrame(corr, columns=columns, index=columns)
         print(corr_pd)
-        return corr_result(corr_pd)
+        return _HeatmapPlotResult(corr_pd)
 
-class pca_result:
-    def __init__(self, X_pca, explained_variance, model, label):
-        self.X_pca = X_pca
-        self.explained_variance = explained_variance
-        self.model = model
-        self.label = label
+# class pca_result:
+#     def __init__(self, X_pca, explained_variance, model, label):
+#         self.X_pca = X_pca
+#         self.explained_variance = explained_variance
+#         self.model = model
+#         self.label = label
 
 def _compute_pca(df, columns, label, n_components=2):
 
@@ -227,7 +228,7 @@ def _compute_pca(df, columns, label, n_components=2):
     explained_variance = pca.explained_variance_ratio_
     print("Explained variance ratio:", explained_variance)
 
-    return pca_result(X_pca, explained_variance, pca, label)
+    return _PointcloudPlotResult(X_pca, explained_variance, pca, label)
 
 class SensOps:
     @staticmethod

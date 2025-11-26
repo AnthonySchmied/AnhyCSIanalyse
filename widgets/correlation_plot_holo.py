@@ -47,7 +47,7 @@ class CorrelationPlot:
                 )
                 df_long = df_long.rename(columns={df_long.columns[0]: "x"})
                 hv_map = hv.HeatMap(df_long, kdims=["x", "y"], vdims=["value"]).opts(
-                    cmap="viridis", colorbar=True, width=300, height=300
+                    cmap="viridis", colorbar=True, width=300, height=300, #clim=(-1, 1)
                 )
 
                 # heatmap = hv.HeatMap(df_long, kdims=["x", "y"], vdims=["value"]).opts(

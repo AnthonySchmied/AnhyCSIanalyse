@@ -2,14 +2,15 @@ from pathlib import Path
 from components.amplitudes import Amplitudes
 from components.phases import Phases
 from components.complex_values import ComplexValues
-from components.metadata_unpack import MetadataUnpack
+from components.metadata_unpack import MetadataUnpack as MDP
 import pandas as pd
 import numpy as np
 import datetime
 import ast
 import re
 
-FORCE_READ_CSV = True
+# # FORCE_READ_CSV = True
+FORCE_READ_CSV = False
 
 def ensure_data_loaded(func):
     def wrapper(self, *args, **kwargs):
@@ -391,12 +392,36 @@ class _MetaDataRecordingMinix:
         return f"{self.get_datetime()} {self.get_name()} {self.get_frequencies()} {self.get_receivers_name_mac()[0]}"
 
     def get_label(self):
-        return f"{MetadataUnpack.names_pack([self.get_name()])}_{MetadataUnpack.days_pack([self.get_date()])}"
+        return f"{MDP.names_pack([self.get_name()])}_{MDP.days_pack([self.get_date()])}"
 
+
+    def get_date_packed(self):
+        return MDP.days_pack([self.get_date()])
+
+    def get_name_packed(self):
+        return MDP.names_pack([self.get_name()])
+
+    def get_recv_packed(self):
+        return MDP.receivers_pack([self.get_receivers_name_mac()])
 
 class _TreeTraversaRecordinglMinix:
     @ensure_data_loaded
-    def get_recording(self, sender_mac=None, receiver_mac=None, freqs=None):
+    def get_recording_freq(self, freq):
+        if len(self.get_frequencies()) > 1:
+            self.split_by_frequency()
+            for rec in self._subrecordings_split_by_freq:
+                sub_rec = rec.get_recording_freq(freq)
+                if sub_rec is not None:
+                    return sub_rec
+        else:
+            if self.get_frequencies()[0] == freq:
+                return self
+            else:
+                return None
+        
+    # Obsolete
+    @ensure_data_loaded
+    def get_recording(self, freqs=None, sender_mac=None, receiver_mac=None):
         to_return = []
         self.get_frequencies()
         if len(self._frequencies) > 1:

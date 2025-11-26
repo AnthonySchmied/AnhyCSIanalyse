@@ -1,4 +1,5 @@
 from components.sens_ops import _normalize_df, _standardize_df, _scale_df, _hampel_df
+from components.sens_ops import SensOps as so
 
 from functools import wraps
 
@@ -106,3 +107,6 @@ class SignalData:
     @masked_only
     def hampel(self, window_size, n_sigmas):
         self.df = _hampel_df(self.df, self.columns, window_size, n_sigmas)
+
+    def masked(self):
+        return so.mask(self.df)
