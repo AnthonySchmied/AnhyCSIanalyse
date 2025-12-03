@@ -5,28 +5,7 @@ from components.recording_session_collection import RecordingSessionCollection
 from components.batch import Batch
 from components.metadata_unpack import MetadataUnpack as MDP
 from scripts.processings import Rising, Shifting, MultTrans
-from components.plot_container import CorrelationIndexPlot
-
-# class CorrelationResult():
-#     def __init__(self):
-#         pass
-
-class CorrelationIndexCollector():
-    def __init__(self):
-        self._data = {}
-
-    def register(self, batch):
-        self._batch = batch
-        if batch.get_id() not in self._data.keys():
-            self._data[batch.get_id()] = {}
-
-    def append(self, batch, idx, mean_corr):
-        if idx not in self._data[batch.get_id()].keys():
-            self._data[batch.get_id()][idx] = []
-        self._data[batch.get_id()][idx].append(mean_corr)
-
-    def get_by_day(self):
-        pass
+from components.correlation_plot_collector import CorrelationIndexCollector
 
 
 class MultiprocessBatches():
@@ -43,14 +22,15 @@ class MultiprocessBatches():
         )
 
         batches = self._collect_batches(
-            receivers=MDP.receivers_unpack([3,2,1]),
+            receivers=MDP.receivers_unpack([3]),
             days=MDP.days_unpack([1,2,3,4]),
-            names=MDP.names_unpack(["emt"]),
+            names=MDP.names_unpack(["a", "e", "emt", "h", "i"]),
         )
+        self.corr_index_collector = CorrelationIndexCollector()
         self._plot_batches(batches)
+        self.corr_index_collector.save()
 
     def _plot_batches(self, batches):
-        self.corr_index_collector = CorrelationIndexCollector()
         for idx, batch in enumerate(batches):
             time = datetime.now()
             self._plot_batch(batch)
@@ -63,7 +43,9 @@ class MultiprocessBatches():
         # Rising(batch, self.corr_index_collector, "rising", freq)
         # Shifting(batch, self.corr_index_collector, "shifting", freq)
 
-        MultTrans(batch, self.corr_index_collector, "multtrans", freq);
+        MultTrans(batch, self.corr_index_collector, "normtime", freq, 4, 5)
+
+
 
         # global result = Rising(batch)
         # correlation shift

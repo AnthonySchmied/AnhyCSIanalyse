@@ -160,7 +160,10 @@ class _ReadRecordingMinix:
 
     def read_csv_santizied(self):
         if not FORCE_READ_CSV and self.get_pickle_path().is_file():
-            self._read_from_pickle()
+            try:
+                self._read_from_pickle()
+            except:
+                self._read_from_csv()
         else:
             self._read_from_csv()
 

@@ -3,6 +3,7 @@ import numpy as np
 from scipy.signal import butter, filtfilt
 from scipy.signal import medfilt
 from sklearn.model_selection import train_test_split
+from sklearn.decomposition import PCA
 from components.plot_container import _HeatmapPlotResult, _PointcloudPlotResult, _HeatmapArraysPlotResult
 import math
 
@@ -212,15 +213,10 @@ def _multply(df1, transpose1, transpose2, columns):
         m1 = df1[columns].to_numpy()
         m2 = df1[columns].to_numpy()
         if transpose1:
-            print(m1)
             m1 = m1.T
-            print(m1)
         if transpose2:
-            print(m2)
             m2 = m2.T
-            print(m2)
         mult = m1 @ m2
-        print(mult)
 
         return _HeatmapArraysPlotResult(mult)
 
@@ -247,12 +243,21 @@ def _compute_pca(df, columns, label, n_components=2):
     X_scaled = StandardScaler().fit_transform(X)
     
     pca = PCA(n_components=n_components)
-    X_pca = pca.fit_transform(X_scaled)
+    X_pca = pca.fit_transform(X_scaled, label)
 
     explained_variance = pca.explained_variance_ratio_
     print("Explained variance ratio:", explained_variance)
 
     return _PointcloudPlotResult(X_pca, explained_variance, pca, label)
+
+def _compute_X_pca(df, columns, label, X):
+    pca = PCA(n_components=X)
+    X_pca = pca.fit_transform(df[columns])
+    return _PointcloudPlotResult(X_pca, label)
+
+
+    # Ergebnis als DataFrame
+    # pca_df = pd.DataFrame(X_pca, columns=['PC1', 'PC2', 'PC3'])
 
 def _norm_by_time(df, columns):
     normed_df = df.copy()
@@ -363,6 +368,10 @@ class SensOps:
     def pca(data_in):
         return _compute_pca(SensOps.mask(data_in.df), data_in.columns, data_in.recording.get_label())
     
+    @staticmethod
+    def pca_X(data_in, X=4):
+        return _compute_X_pca(SensOps.mask(data_in.df), data_in.columns, data_in.recording.get_label(), X)
+
     @staticmethod
     def multiply(data_in1, transpose1, transpose2):
         return _multply(SensOps.mask(data_in1.df), transpose1, transpose2, data_in1.columns)

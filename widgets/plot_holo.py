@@ -9,7 +9,7 @@ import numpy as np
 
 hv.extension("bokeh")
 
-from components.plot_container import HeatmapPlot, PointcloudPlot, AmplitudePlot, HeatmapPlotArrays
+from components.plot_container import HeatmapPlot, PointcloudPlot, AmplitudePlot, HeatmapPlotArrays, CorrelationIndexPlot
 
 # from components.sens_ops import SensOps as so
 
@@ -36,41 +36,6 @@ class Plot:
         self._rows[idx].append(sub_plot)
 
     def _draw(self):
-        # gs = pn.GridSpec(width=self.width()*350,height=self.height()*300)
-        # gs = pn.GridSpec()
-
-        # for i, row in enumerate(self._rows):
-        #     if len(row) == 1:
-        #         for entry in row:
-        #         # entry = row[0]
-        #             if isinstance(entry, AmplitudePlot):
-        #                 print("Amplitude", i)
-        #                 elt = self._draw_amplitude(entry)
-        #             gs[i, 0:self.width()] = elt
-        #         continue
-
-        #     for col_idx, entry in enumerate(row):
-        #         if isinstance(entry, AmplitudePlot):
-        #             # elt = self._draw_amplitude(entry)
-        #             pass
-        #         elif isinstance(entry, HeatmapPlot):
-        #             print("heatmap", i)
-        #             elt = self._draw_heatmap(entry)
-        #         elif isinstance(entry, PointcloudPlot):
-        #             print("pointcloud", i)
-        #             elt = self._draw_pointcloud(entry)
-
-        #         gs[i, col_idx] = elt
-
-        # self._layout = gs
-        # return
-
-
-        # self._layout = []
-        # plot_rows = []
-
-        # grid = {}
-
         plots = []
 
         for i, row in enumerate(self._rows):
@@ -79,17 +44,17 @@ class Plot:
             for entry in row:
                 if isinstance(entry, AmplitudePlot):
                     plots.append(self._draw_amplitude(entry))
-                    for _ in range(self.width()-1):
-                        plots.append(self._draw_blank())
+                    # for _ in range(self.width()-1):
+                    #     plots.append(self._draw_blank())
                 elif isinstance(entry, HeatmapPlot):
                     plots.append(self._draw_heatmap(entry))
                 elif isinstance(entry, PointcloudPlot):
                     plots.append(self._draw_pointcloud(entry))
                 elif isinstance(entry, HeatmapPlotArrays):
                     plots.append(self._draw_heatmap_array(entry))
-                # elif isinstance(entry, MultTransPlot):
-                    # plots.append(self._draw_pointcloud(entry))
-                    
+                elif isinstance(entry, CorrelationIndexPlot):
+                    plots.append(self._draw_correlation_index_plot(entry))
+
                 # grid[f"{i}_{col_idx}"] = elt
                 # col_idx += 1
 
@@ -122,7 +87,7 @@ class Plot:
             curves.append(hv.Curve((x, values), kdims=["x"], vdims=["y"]).relabel(key))
 
         return hv.Overlay(curves).opts(
-            width=self.width() * 400,
+            width=400,
             height=300,
             xlabel="Time",
             ylabel="Amplitude",
@@ -176,27 +141,64 @@ class Plot:
         # )
         return hv_map
     
-
     def _draw_pointcloud(self, entry):
-        colors = ["red", "blue", "green", "orange", "purple"]
+        colors = {
+            "i-r":"red",
+            "a-r":"blue",
+            "e-r":"orange",
+            "h-r":"purple",
+            "emt":"green"
+        }
+              
         scatters = []
         for idx, dataset in enumerate(entry):
-            X = dataset.X_pca  # shape (N, 2)
-            # label = f"Set {idx+1}"
-
             scat = hv.Scatter(
-                (X[:, 0], X[:, 1]),
-                kdims="PC1",
-                vdims="PC2",
-                label=f"{idx}-{dataset.label}",
-            ).opts(size=6, color=colors[idx % len(colors)], tools=["hover"])
+                (dataset.get_pc_X(2), dataset.get_pc_X(3)),
+                kdims="pc2",
+                vdims="pc3",
+                label=f"{dataset.get_label()}",
+            ).opts(size=1, color=colors[dataset.get_label()[3:6]], tools=["hover"])
 
             scatters.append(scat)
 
         pca_plot = hv.Overlay(scatters).opts(
-            width=350, height=300, title=f"PCA {entry._results[0].explained_variance}"
+            width=1900, height=1000, title=f"PCA", show_legend=True
         )
         return pca_plot
+
+    def _draw_correlation_index_plot(self, entry):
+        # colors = ["red", "blue", "green", "orange", "purple"]
+
+        colors = {
+            "i-r":"red",
+            "a-r":"blue",
+            "e-r":"orange",
+            "h-r":"purple",
+            "emt":"green"
+        }
+
+        scatters = []
+        for idx, dataset in enumerate(entry):
+            # X = dataset.X_pca  # shape (N, 2)
+            # label = f"Set {idx+1}"
+            # print(dataset)
+
+            # print(dataset.get_label()[3:6])
+
+
+            scat = hv.Scatter(
+                (dataset.get_mean(), dataset.get_variance()),
+                kdims="mean",
+                vdims="variance",
+                label=f"{dataset.get_label()[3:6]}",
+            ).opts(size=1, color=colors[dataset.get_label()[3:6]], tools=["hover"])
+
+            scatters.append(scat)
+
+        corr_index_plot = hv.Overlay(scatters).opts(
+            width=1900, height=1000, title="Scatter"
+        )
+        return corr_index_plot
 
     def _draw_blank(self):
         dummy = hv.Scatter(([], []), kdims="PC1", vdims="PC2").opts(

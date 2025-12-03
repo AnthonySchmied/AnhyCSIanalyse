@@ -8,6 +8,7 @@ DEBUG = True
 class _BatchSes:
     def __init__(self, ses):
         self._ses = ses
+        self._id = None
 
     def load_from_storage_freq(self, freq):
         self._rec = self._ses.get_recording_freq(freq)
@@ -29,6 +30,15 @@ class _BatchSes:
 
     def get_datetime(self):
         return self._rec.get_datetime()
+
+    def get_id(self):
+        if self._id is None:
+            days = self.get_days()
+            names = self.get_names()
+            recvs = self.get_recvs()
+            datetime = self.get_datetime()
+            self._id = f"{MDP.days_key_from_packed(days)}-{MDP.names_key_from_packed(names)}-{MDP.receivers_key_from_packed(recvs)}-{str(datetime)}"
+        return self._id
 
 
 class Batch:
@@ -62,3 +72,9 @@ class Batch:
             datetimes = MDP.unique([ses.get_datetime() for ses in self._recs])
             self._id = f"{MDP.days_key_from_packed(days)}-{MDP.names_key_from_packed(names)}-{MDP.receivers_key_from_packed(recvs)}-{str(datetimes[0])}"
         return self._id
+
+    def __iter__(self):
+        return iter(self._recs)
+
+    def __getitem__(self, key):
+        return self._recs[key]
