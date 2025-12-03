@@ -3,7 +3,8 @@ import numpy as np
 from scipy.signal import butter, filtfilt
 from scipy.signal import medfilt
 from sklearn.model_selection import train_test_split
-from components.plot_container import _HeatmapPlotResult, _PointcloudPlotResult
+from components.plot_container import _HeatmapPlotResult, _PointcloudPlotResult, _HeatmapArraysPlotResult
+import math
 
 # def _normalize_df(df, columns):
 #     max_value = df[columns].to_numpy().max()
@@ -27,11 +28,11 @@ from components.plot_container import _HeatmapPlotResult, _PointcloudPlotResult
 
 def _normalize_df(df, columns):
     max_value = df[columns].to_numpy().max()
-    min_value = df[columns].to_numpy().min()
+    # min_value = df[columns].to_numpy().min()
     shift_up = 0
-    if min_value < 0:
-        shift_up = abs(min_value)
-        max_value += shift_up
+    # if min_value < 0:
+    #     shift_up = abs(min_value)
+    #     max_value += shift_up
     normalized_df = df.copy()
     if max_value != 0:
         normalized_df[columns] = (normalized_df[columns] + shift_up) / max_value
@@ -206,6 +207,29 @@ def _compute_correlation(df1, columns):
         print(corr_pd)
         return _HeatmapPlotResult(corr_pd)
 
+def _multply(df1, transpose1, transpose2, columns):
+    with np.errstate(invalid='raise'):
+        m1 = df1[columns].to_numpy()
+        m2 = df1[columns].to_numpy()
+        if transpose1:
+            print(m1)
+            m1 = m1.T
+            print(m1)
+        if transpose2:
+            print(m2)
+            m2 = m2.T
+            print(m2)
+        mult = m1 @ m2
+        print(mult)
+
+        return _HeatmapArraysPlotResult(mult)
+
+def _to_heatmap_arrays(df, columns, transpose):
+    data = df[columns].to_numpy()
+    if transpose:
+        data = data.T
+    return _HeatmapArraysPlotResult(data)
+
 # class pca_result:
 #     def __init__(self, X_pca, explained_variance, model, label):
 #         self.X_pca = X_pca
@@ -230,6 +254,20 @@ def _compute_pca(df, columns, label, n_components=2):
 
     return _PointcloudPlotResult(X_pca, explained_variance, pca, label)
 
+def _norm_by_time(df, columns):
+    normed_df = df.copy()
+    for index, row in normed_df[columns].iterrows():
+        norm = sum([r*r for r in row]) ** 0.5
+        normed_df.loc[index, columns] = row / norm
+    return normed_df
+
+def _norm_by_subcarrier(df, columns):
+    normed_df = df.copy()
+    for col in columns:
+        norm = sum([r*r for r in normed_df[col]]) ** 0.5
+        normed_df[col] = normed_df[col] / norm
+    return normed_df
+    
 class SensOps:
     @staticmethod
     def mask(df):
@@ -320,7 +358,25 @@ class SensOps:
     @staticmethod
     def correlation(data1_in, data2_in=None):
         return _compute_correlation(SensOps.mask(data1_in.df), data1_in.columns)
-    
+
     @staticmethod
     def pca(data_in):
         return _compute_pca(SensOps.mask(data_in.df), data_in.columns, data_in.recording.get_label())
+    
+    @staticmethod
+    def multiply(data_in1, transpose1, transpose2):
+        return _multply(SensOps.mask(data_in1.df), transpose1, transpose2, data_in1.columns)
+    
+    @staticmethod
+    def to_heatmap_arrays(data_in, transpose):
+        return _to_heatmap_arrays(SensOps.mask(data_in.df), data_in.columns, transpose)
+    
+    @staticmethod
+    def norm_by_time(data_in):
+        normed_df = _norm_by_time(SensOps.mask(data_in.df), data_in.columns)
+        return data_in.__class__(normed_df, data_in.recording, data_in.columns)
+
+    @staticmethod
+    def norm_by_subcarrier(data_in):
+        normed_df = _norm_by_subcarrier(SensOps.mask(data_in.df), data_in.columns)
+        return data_in.__class__(normed_df, data_in.recording, data_in.columns)

@@ -1,12 +1,15 @@
 from datetime import datetime
 import holoviews as hv
+import pandas as pd
+import numpy as np
+
 # import panel as pn
 # pn.extension('bokeh')
 # from holoviews import GridSpec
 
 hv.extension("bokeh")
 
-from components.plot_container import HeatmapPlot, PointcloudPlot, AmplitudePlot
+from components.plot_container import HeatmapPlot, PointcloudPlot, AmplitudePlot, HeatmapPlotArrays
 
 # from components.sens_ops import SensOps as so
 
@@ -71,6 +74,7 @@ class Plot:
         plots = []
 
         for i, row in enumerate(self._rows):
+            # print(row)
             # col_idx = 0
             for entry in row:
                 if isinstance(entry, AmplitudePlot):
@@ -81,10 +85,17 @@ class Plot:
                     plots.append(self._draw_heatmap(entry))
                 elif isinstance(entry, PointcloudPlot):
                     plots.append(self._draw_pointcloud(entry))
+                elif isinstance(entry, HeatmapPlotArrays):
+                    plots.append(self._draw_heatmap_array(entry))
+                # elif isinstance(entry, MultTransPlot):
+                    # plots.append(self._draw_pointcloud(entry))
+                    
                 # grid[f"{i}_{col_idx}"] = elt
                 # col_idx += 1
 
-        self._layout = hv.Layout(plots).cols(self.width())
+        # self._layout = hv.Layout(plots)
+        self._layout = hv.Layout(plots).cols(self.width()).opts(shared_axes=False)
+       
         # exit()
         #     plot_rows.append(hv.Layout(row_plts).cols(len(row)))
         # self._layout = hv.Layout(plot_rows).cols(1)
@@ -131,6 +142,40 @@ class Plot:
             title=f"Corr mean: {entry.get_index():.6f}",  # clim=(-1, 1)
         )
         return hv_map
+
+    def _draw_heatmap_array(self, entry):
+        d = entry.get_matrix()
+
+        rows, cols = d.shape
+        xs, ys = np.meshgrid(range(cols), range(rows))
+
+        df = pd.DataFrame({
+            "x": xs.flatten(),
+            "y": ys.flatten(),
+            "value": d.flatten()
+        })
+
+        hv_map = hv.HeatMap(df, kdims=["x", "y"], vdims=["value"]).opts(
+            cmap="viridis",
+            shared_axes=False,
+            colorbar=True,
+            # width=30*entry.get_width()+100,
+            # height=30*entry.get_height()+60,
+            width=3*entry.get_width()+100,
+            height=3*entry.get_height()+60,
+            title=entry.get_title()
+            #title=f"Corr mean: {entry.get_index():.6f}",  # clim=(-1, 1)
+        )
+
+        # hv_map = hv.HeatMap(df, kdims=["x", "y"]).opts(
+        #     cmap="viridis",
+        #     colorbar=True,
+        #     width=350,
+        #     height=300,
+        #     #title=f"Corr mean: {entry.get_index():.6f}",  # clim=(-1, 1)
+        # )
+        return hv_map
+    
 
     def _draw_pointcloud(self, entry):
         colors = ["red", "blue", "green", "orange", "purple"]

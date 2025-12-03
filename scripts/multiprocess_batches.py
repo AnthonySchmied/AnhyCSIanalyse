@@ -4,7 +4,7 @@ from pathlib import Path
 from components.recording_session_collection import RecordingSessionCollection
 from components.batch import Batch
 from components.metadata_unpack import MetadataUnpack as MDP
-from scripts.multiprocessings import Rising, Shifting
+from scripts.processings import Rising, Shifting, MultTrans
 from components.plot_container import CorrelationIndexPlot
 
 # class CorrelationResult():
@@ -45,7 +45,7 @@ class MultiprocessBatches():
         batches = self._collect_batches(
             receivers=MDP.receivers_unpack([3,2,1]),
             days=MDP.days_unpack([1,2,3,4]),
-            names=MDP.names_unpack(["emt", "a", "h", "i", "e"]),
+            names=MDP.names_unpack(["emt"]),
         )
         self._plot_batches(batches)
 
@@ -60,8 +60,10 @@ class MultiprocessBatches():
         # print(batch)
         batch.load_from_storage_freq(freq)
 
-        Rising(batch, self.corr_index_collector, "rising", freq)
+        # Rising(batch, self.corr_index_collector, "rising", freq)
         # Shifting(batch, self.corr_index_collector, "shifting", freq)
+
+        MultTrans(batch, self.corr_index_collector, "multtrans", freq);
 
         # global result = Rising(batch)
         # correlation shift
