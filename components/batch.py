@@ -2,8 +2,37 @@ from datetime import datetime
 
 from components.metadata_unpack import MetadataUnpack as MDP
 
-DEBUG = True
+DEBUG = False
 
+class _BatchSesLabel():
+    def __init__(self, batchses, day, names, recvs, datetime, freq):
+        self._batchses = batchses
+        self._id = None
+        self._day = day
+        self._names = names
+        self._recvs = recvs
+        self._datetime = datetime
+        self._freq = freq
+
+    def get_day(self):
+        return self._day
+
+    def get_names(self):
+        return self._names
+
+    def get_recvs(self):
+        return self._recvs
+
+    def get_datetime(self):
+        return self._datetime
+
+    def get_frequency(self):
+        return self._freq
+
+    def __str__(self):
+        if self._id is None:
+            self._id = f"{MDP.days_key_from_packed(self._day)}-{MDP.names_key_from_packed(self._names)}-{MDP.receivers_key_from_packed(self._recvs)}-{str(self._freq)}Hz-{str(self._datetime)}"
+        return self._id
 
 class _BatchSes:
     def __init__(self, ses):
@@ -12,6 +41,8 @@ class _BatchSes:
 
     def load_from_storage_freq(self, freq):
         self._rec = self._ses.get_recording_freq(freq)
+        self._freq = freq
+        self._id = None
 
     def get_masked_amplitude(self, start_time, offset, length):
         if DEBUG:
@@ -30,6 +61,9 @@ class _BatchSes:
 
     def get_datetime(self):
         return self._rec.get_datetime()
+    
+    def get_frequency(self):
+        return self._freq
 
     def get_id(self):
         if self._id is None:
@@ -37,7 +71,8 @@ class _BatchSes:
             names = self.get_names()
             recvs = self.get_recvs()
             datetime = self.get_datetime()
-            self._id = f"{MDP.days_key_from_packed(days)}-{MDP.names_key_from_packed(names)}-{MDP.receivers_key_from_packed(recvs)}-{str(datetime)}"
+            freq = self.get_frequency()
+            self._id = _BatchSesLabel(self, days, names, recvs, datetime, freq)
         return self._id
 
 
@@ -54,7 +89,8 @@ class Batch:
         time = datetime.now()
         for rec in self._recs:
             rec.load_from_storage_freq(freq)
-        print(f"loaded batch in {datetime.now()-time}")
+        if DEBUG:
+            print(f"loaded batch in {datetime.now()-time}")
 
     def get_masked_amplitude(self, start_time, offset, length):
         return [

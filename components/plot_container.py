@@ -26,14 +26,17 @@ class HeatmapPlot:
 
 
 class _PointcloudPlotResult:
-    def __init__(self, X_pca, label):
+    def __init__(self, X_pca, eigenvectors, eigenvalues, label):
         self._X_pca = X_pca
-        # self.explained_variance = explained_variance
-        # self.model = model
+        self._eigenvectors = eigenvectors
+        self._eigenvalues = eigenvalues
         self._label = label
+        self._mean = None
+        self._std = None
+        self._two_std_range = None
 
     def get_pc_X(self, X):
-        return [r[X-1] for r in self._X_pca]
+        return self._X_pca[:, X-1]
 
     def get_label(self):
         return self._label
@@ -41,13 +44,40 @@ class _PointcloudPlotResult:
     def set_label(self, label):
         self._label = label
 
+    def get_mean(self):
+        if self._mean is None:
+            self._mean = np.mean(self._X_pca, axis=0)
+        return self._mean
+
+    def get_std(self):
+        if self._std is None:
+            self._std = np.std(self._X_pca, axis=0)
+        return self._std
+    
+    def get_two_std_range(self):
+        if self._two_std_range is None:
+            self._two_std_range = (self.get_mean() - 2 * self.get_std(), self.get_mean() + 2 * self.get_std())
+        return self._two_std_range
+
+    def in_ref_range(self, ref, X):
+        if self.get_mean()[X-1] > ref.get_two_std_range()[0][X-1] and self.get_mean()[X-1] < ref.get_two_std_range()[1][X-1]:
+            print(f"{ref.get_two_std_range()[0][X-1]} < {self.get_mean()[X-1]} < {ref.get_two_std_range()[1][X-1]}")
+            return True
+        return False
+
+
+
 class PointcloudPlot:
-    def __init__(self, plots: list):
+    def __init__(self, plots: list, pc1 = 1, pc2 = 2):
         self._results = plots
+        self._pc1 = pc1
+        self._pc2 = pc2
 
     def __iter__(self):
         return iter(self._results)
 
+    def get_pc(self):
+        return (self._pc1, self._pc2)
 
 class AmplitudePlot:
     def __init__(self, amplitudes):

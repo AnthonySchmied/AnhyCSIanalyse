@@ -4,7 +4,7 @@ from pathlib import Path
 from components.recording_session_collection import RecordingSessionCollection
 from components.batch import Batch
 from components.metadata_unpack import MetadataUnpack as MDP
-from scripts.processings import Rising, Shifting, MultTrans
+from scripts.processings import Rising, Shifting, MultTrans, AllOnce, PerformPCA
 from components.correlation_plot_collector import CorrelationIndexCollector
 
 
@@ -21,14 +21,32 @@ class MultiprocessBatches():
             ]
         )
 
-        batches = self._collect_batches(
+        # batches1 = self._collect_batches(
+        #     receivers=MDP.receivers_unpack([1]),
+        #     days=MDP.days_unpack([1,2,3,4]),
+        #     names=MDP.names_unpack(["a", "e", "emt", "h", "i"]),
+        # )
+        # self.corr_index_collector = CorrelationIndexCollector()
+        # self._plot_batches(batches1)
+        # self.corr_index_collector.save("pca_r1_d1234.png")
+
+        # batches2 = self._collect_batches(
+        #     receivers=MDP.receivers_unpack([2]),
+        #     days=MDP.days_unpack([1,2,3,4]),
+        #     names=MDP.names_unpack(["a", "e", "emt", "h", "i"]),
+        # )
+        # self.corr_index_collector = CorrelationIndexCollector()
+        # self._plot_batches(batches2)
+        # self.corr_index_collector.save("pca_r2_d1234.png")
+
+        batches3 = self._collect_batches(
             receivers=MDP.receivers_unpack([3]),
             days=MDP.days_unpack([1,2,3,4]),
-            names=MDP.names_unpack(["a", "e", "emt", "h", "i"]),
+            names=MDP.names_unpack(["a", "e", "emt"]),
         )
         self.corr_index_collector = CorrelationIndexCollector()
-        self._plot_batches(batches)
-        self.corr_index_collector.save()
+        self._plot_batches(batches3)
+        self.corr_index_collector.save("pca_r3_d1234.png")
 
     def _plot_batches(self, batches):
         for idx, batch in enumerate(batches):
@@ -36,15 +54,18 @@ class MultiprocessBatches():
             self._plot_batch(batch)
             print(f"saved: {idx+1}/{len(batches)} in: {datetime.now()-time} total: {datetime.now()-self._start_time} each: {(datetime.now()-self._start_time)/(idx+1)}")
 
-    def _plot_batch(self, batch, freq=100):
+    def _plot_batch(self, batch, freq=25):
         # print(batch)
         batch.load_from_storage_freq(freq)
 
         # Rising(batch, self.corr_index_collector, "rising", freq)
         # Shifting(batch, self.corr_index_collector, "shifting", freq)
 
-        MultTrans(batch, self.corr_index_collector, "normtime", freq, 4, 5)
+        # MultTrans(batch, self.corr_index_collector, "normtime", freq, 4, 5)
 
+        AllOnce(batch, self.corr_index_collector, "pca", freq)
+
+        # PerformPCA(batch, self.corr_index_collector, "pca", freq)
 
 
         # global result = Rising(batch)

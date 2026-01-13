@@ -15,12 +15,12 @@ class CorrelationIndexCollector():
     def push_data(self, data, label):
         self._data[label].append(data)
 
-    def save(self):
+    def save(self, name):
         plot = Plot(1)
         datas = []
         [datas.extend(p) for _, p in self._data.items()]
         plot.append_row_idx(0, PointcloudPlot(datas))
-        plot.save(Path(self._path, "pca_r3_d1234.png"))
+        plot.save(Path(self._path, name))
 
     def set_path(self, path):
         self._path = path

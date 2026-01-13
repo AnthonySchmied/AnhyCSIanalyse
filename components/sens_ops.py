@@ -2,8 +2,7 @@ import pandas as pd
 import numpy as np
 from scipy.signal import butter, filtfilt
 from scipy.signal import medfilt
-from sklearn.model_selection import train_test_split
-from sklearn.decomposition import PCA
+from sklearn.decomposition import PCA, TruncatedSVD
 from components.plot_container import _HeatmapPlotResult, _PointcloudPlotResult, _HeatmapArraysPlotResult
 import math
 
@@ -83,7 +82,7 @@ def _hampel_df(df, columns, window_size, n_sigmas):
 def _smooth_df(df, columns):
     filtered_df = df.copy()
     for col in columns:
-        filtered_df[col] = medfilt(filtered_df[col], kernel_size=77)
+        filtered_df[col] = medfilt(filtered_df[col], kernel_size=45)
     return filtered_df
 
 
@@ -251,13 +250,108 @@ def _compute_pca(df, columns, label, n_components=2):
     return _PointcloudPlotResult(X_pca, explained_variance, pca, label)
 
 def _compute_X_pca(df, columns, label, X):
-    pca = PCA(n_components=X)
-    X_pca = pca.fit_transform(df[columns])
-    return _PointcloudPlotResult(X_pca, label)
+    # print(df[columns])
+    #     amp_sub_2  amp_sub_3  amp_sub_4  ...  amp_sub_62  amp_sub_63  amp_sub_64
+    # 500     13.928     14.866     14.866  ...      13.000      13.928      13.928
+    # 501     14.866     15.556     14.866  ...      12.728      14.213      14.213
+    # 502     15.620     16.401     17.029  ...      14.213      14.213      14.213
+    # 503     15.556     16.971     15.556  ...      14.142      14.866      14.866
+    # 504     15.264     15.811     15.811  ...      13.601      13.601      14.422
+    # 505     17.263     18.248     17.117  ...      15.297      16.125      16.125
+    # 506     15.556     16.279     16.279  ...      13.454      14.866      14.866
+    # 507     15.264     16.125     16.125  ...      13.601      14.422      14.422
+    # 508     15.620     16.401     15.620  ...      13.601      14.213      15.000
+    # 509     15.620     15.620     15.620  ...      13.454      14.213      14.213
+    # 510     15.232     16.155     15.232  ...      13.928      13.928      13.928
+    # 511     15.000     15.000     15.620  ...      12.806      13.601      14.213
+    # 512     15.264     16.125     16.125  ...      13.892      13.892      14.765
+    # 513     16.125     17.263     16.279  ...      14.318      15.297      15.297
+    # 514     17.088     17.088     18.028  ...      14.866      15.811      15.811
+    # 515     16.125     16.125     16.125  ...      13.892      14.765      14.765
+    # 516     16.279     16.279     15.556  ...      13.454      14.866      14.866
+    # 517     15.620     16.401     16.401  ...      13.601      14.422      15.000
+    # 518     14.866     16.155     15.811  ...      12.649      14.866      14.866
+    # 519     15.133     15.133     15.133  ...      12.166      13.153      14.142
+    # as_np = df[columns].to_numpy()
+    # print(as_np)
+    # print(f"{len(as_np)}x{len(as_np[0])}")
+
+    from sklearn.decomposition import PCA
+    from sklearn.preprocessing import StandardScaler
+    
+    # print(df.head())
+    # exit()
+
+    data = df[columns].to_numpy()
+    # print(data)
+    # print(data.shape)
+    # print(np.mean(data[0]))
+    # print(np.min(data))
+
+    scaler = StandardScaler()
+    Xs = scaler.fit_transform(data)
 
 
-    # Ergebnis als DataFrame
-    # pca_df = pd.DataFrame(X_pca, columns=['PC1', 'PC2', 'PC3'])
+    # import matplotlib.pyplot as plt
+    # import seaborn as sns
+    # sns.boxplot(Xs)
+    # plt.xticks(rotation=90)
+    # plt.title("Verteilung der amp_sub_* Rohdaten")
+    # plt.show()
+
+    # exit()
+
+    print("Mittelwert der skalierten Daten:", np.mean(Xs, axis=0))
+    print("Standardabweichung der skalierten Daten:", np.std(Xs, axis=0))
+
+
+    # ---------- 2. PCA ----------
+    pca = PCA(n_components=8, svd_solver='full')
+    X_pca = pca.fit_transform(Xs)
+
+    # pca = TruncatedSVD(n_components=X) # X = 4
+    # data_scaled = StandardScaler().fit_transform(data)
+    
+    # print(data_scaled)
+    # print(data_scaled.shape)
+    # print(np.mean(data_scaled))
+    # print(np.min(data_scaled))
+    # exit()
+
+    # X_pca = pca.fit_transform(data)
+    
+    eigenvectors = pca.components_
+    eigenvalues = pca.explained_variance_
+
+    print("Erklärte Varianz pro Komponente:", pca.explained_variance_ratio_)
+    print("Kumulierte erklärte Varianz:", np.cumsum(pca.explained_variance_ratio_))
+
+    # print(df[columns].shape)
+    # print(df[columns].to_numpy().shape)
+    # exit()
+
+      # shape: (n_components, n_features)
+    
+    print(X_pca.shape)
+    print(eigenvectors.shape)
+    
+    # exit()
+
+    print(eigenvectors)
+    print(eigenvalues)
+    
+    print(X_pca)
+    print(f"{len(X_pca)}x{len(X_pca[0])}")
+    return _PointcloudPlotResult(X_pca, eigenvectors, eigenvalues, label)
+
+def _compute_X_polyKPCA(df, columns, label, X):
+    from sklearn.decomposition import KernelPCA
+    pca = KernelPCA(n_components=X, degree=2)
+    X_pca = pca.fit_transform(df[columns].to_numpy())
+    eigenvectors = pca.components_
+    eigenvalues = pca.explained_variance_
+    return _PointcloudPlotResult(X_pca, eigenvectors, eigenvalues, label)
+
 
 def _norm_by_time(df, columns):
     normed_df = df.copy()
@@ -371,6 +465,10 @@ class SensOps:
     @staticmethod
     def pca_X(data_in, X=4):
         return _compute_X_pca(SensOps.mask(data_in.df), data_in.columns, data_in.recording.get_label(), X)
+
+    @staticmethod
+    def pca_X_poly(data_in):
+        return _compute_X_polyKPCA(SensOps.mask(data_in.df), data_in.columns, data_in.recording.get_label())
 
     @staticmethod
     def multiply(data_in1, transpose1, transpose2):

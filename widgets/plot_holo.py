@@ -142,22 +142,53 @@ class Plot:
         return hv_map
     
     def _draw_pointcloud(self, entry):
+        # colors = {
+        #     "i-r":"red",
+        #     "a-r":"blue",
+        #     "e-r":"orange",
+        #     "h-r":"purple",
+        #     "emt":"green"
+        # }
+        # colors = {
+        #     "i-r":"blue",
+        #     "a-r":"blue",
+        #     "e-r":"blue",
+        #     "h-r":"blue",
+        #     "emt":"green"
+        # }
+
+        # colors = {
+        #     10: "red",
+        #     25: "blue",
+        #     50: "green",
+        #     100: "purple"
+        # }
+
         colors = {
-            "i-r":"red",
-            "a-r":"blue",
-            "e-r":"orange",
-            "h-r":"purple",
-            "emt":"green"
+            "i":"red",
+            "a":"blue",
+            "e":"orange",
+            "h":"purple",
+            "emt":"green",
+            "ei": "cyan",
+            "ie": "magenta",
+            "ha": "lime",
+            "ah": "brown",
         }
-              
+
         scatters = []
+        dim1, dim2 = entry.get_pc()
         for idx, dataset in enumerate(entry):
+            # print(dataset.get_label())
+            print(str(dataset.get_label()))
+            # print(colors[dataset.get_label().get_frequency()])
+
             scat = hv.Scatter(
-                (dataset.get_pc_X(2), dataset.get_pc_X(3)),
-                kdims="pc2",
-                vdims="pc3",
-                label=f"{dataset.get_label()}",
-            ).opts(size=1, color=colors[dataset.get_label()[3:6]], tools=["hover"])
+                (dataset.get_pc_X(dim1), dataset.get_pc_X(dim2)),
+                kdims="pc"+str(dim1),
+                vdims="pc"+str(dim2),
+                label=f"{str(dataset.get_label())}",
+            ).opts(size=5, color=colors[dataset.get_label().get_names()[0]], tools=["hover"]) # , xlim=(-7,7), ylim=(-5,5)
 
             scatters.append(scat)
 

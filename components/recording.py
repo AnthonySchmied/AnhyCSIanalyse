@@ -12,6 +12,8 @@ import re
 # FORCE_READ_CSV = True
 FORCE_READ_CSV = False
 
+DEBUG = False
+
 def ensure_data_loaded(func):
     def wrapper(self, *args, **kwargs):
         if getattr(self, "df", None) is None or getattr(self, "df", None).empty:
@@ -66,7 +68,8 @@ class _ReadRecordingMinix:
     def _read_from_pickle(self):
         try:
             pickle_path = self.get_pickle_path()
-            print(f"Loading from pickle: {pickle_path}")
+            if DEBUG:
+                print(f"Loading from pickle: {pickle_path}")
             self.df = pd.read_pickle(pickle_path)
 
             # data_bundle = joblib.load("dataset.joblib")
@@ -652,7 +655,8 @@ class Recording(
     def read_from_storage(self):
         time1 = datetime.datetime.now()
         self.read_csv_santizied()
-        print(f"took: {datetime.datetime.now()-time1} loading {self.get_pickle_path()}")
+        if DEBUG:
+            print(f"took: {datetime.datetime.now()-time1} loading {self.get_pickle_path()}")
 
     @ensure_data_loaded
     def __str__(self):

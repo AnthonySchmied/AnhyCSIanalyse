@@ -84,7 +84,7 @@ class MultTrans():
             for i in range(cols):
                 for idx, data in enumerate(batch.get_masked_amplitude(0,(image_shift_i*image_shift*50)+i*50,100)):
                     # data = so.smooth(data)
-                    data = so.norm_by_time(data)
+                    # data = so.norm_by_time(data)
                     pc = so.pca_X(data, 4)
                     pc.set_label(batch[idx].get_id())
                     cic.push_data(pc, batch[idx].get_id())
@@ -110,3 +110,98 @@ class MultTrans():
 
     def get_outpath(self, i):
         return Path(self._outpath, f"{self._batch_id}-{i}.png")
+    
+
+class AllOnce():
+    def __init__(self, batch, cic, base_path, freq, image_shift=1, cols=1):
+        for s in batch:
+            cic.register_label(s.get_id())    
+        self.prepare_outpath(batch, base_path, freq)
+        cic.set_path(self._outpath)
+        for image_shift_i in range(image_shift):
+            for i in range(cols):
+                for idx, data in enumerate(batch.get_masked_amplitude(0,500,5000)):
+                # for idx, data in enumerate(batch.get_masked_amplitude(0,500,20)):
+                    # data = so.smooth(data)
+                    # data = so.norm_by_time(data)
+                    # data = so.normalized(data)
+                    pc = so.pca_X(data, 4)
+                    pc.set_label(batch[idx].get_id())
+                    cic.push_data(pc, batch[idx].get_id())
+
+                    # amp_plot = Plot(1)
+                    # amp_plot.append_row_idx(0, AmplitudePlot(data))
+                    # amp_plot.save(self.get_outpath(0))
+
+                    # plot.append_row_idx(idx*2, AmplitudePlot(data))
+                    # data = so.normalized(data)
+                    # autocorr = HeatmapPlotArrays(so.multiply(data, False, True), "x@xT")
+                    # cic.push_data(batch[idx].get_id(), autocorr.get_matrix_mean(), autocorr.get_matrix_variance())
+                    # plot.append_row_idx(idx*2+1, autocorr)
+
+                    # plot.append_row_idx(idx*2+1, HeatmapPlotArrays(so.to_heatmap_arrays(data, False), "x"))
+
+                    # plot.append_row_idx((idx*2)+2, HeatmapPlotArrays(so.to_heatmap_arrays(data, True), "xT"))
+                    # plot.append_row_idx((idx*2)+2, HeatmapPlotArrays(so.multiply(data, True, False), "xT@x"))
+                    
+            # plot.save(self.get_outpath(image_shift_i))
+            # exit()
+
+    def prepare_outpath(self, batch, base_path, freq):
+        self._batch_id = batch.get_id()
+        self._outpath = Path("plots", f"{base_path}_f{freq}_55s")
+        self._outpath.mkdir(parents=True, exist_ok=True)
+
+    def get_outpath(self, i):
+        return Path(self._outpath, f"{self._batch_id}-{i}.png")
+    
+
+class PerformPCA():
+    def __init__(self, batch, cic, base_path, freq, image_shift=1, cols=1):
+        # for s in batch:
+        #     cic.register_label(s.get_id())    
+        self.prepare_outpath(batch, base_path, freq)
+        # cic.set_path(self._outpath)
+        for image_shift_i in range(image_shift):
+            for i in range(cols):
+                for idx, data in enumerate(batch.get_masked_amplitude(0,0,5500)):
+                # for idx, data in enumerate(batch.get_masked_amplitude(0,500,20)):
+                    
+                    amp_plot = Plot(1)
+                    amp_plot.append_row_idx(0, AmplitudePlot(data))
+                    pca = so.pca_X(data, 4)
+                    pc_plot = Plot(1)
+                    pc_plot.append_row_idx(0, PointcloudPlot(pca))
+
+
+                    amp_plot.save(self.get_outpath(0))
+                    pc_plot.save(self.get_outpath(1))
+
+                    exit()
+
+                    # pc.set_label(batch[idx].get_id())
+                    # cic.push_data(pc, batch[idx].get_id())
+
+                    # plot.append_row_idx(idx*2, AmplitudePlot(data))
+                    # data = so.normalized(data)
+                    # autocorr = HeatmapPlotArrays(so.multiply(data, False, True), "x@xT")
+                    # cic.push_data(batch[idx].get_id(), autocorr.get_matrix_mean(), autocorr.get_matrix_variance())
+                    # plot.append_row_idx(idx*2+1, autocorr)
+
+                    # plot.append_row_idx(idx*2+1, HeatmapPlotArrays(so.to_heatmap_arrays(data, False), "x"))
+
+                    # plot.append_row_idx((idx*2)+2, HeatmapPlotArrays(so.to_heatmap_arrays(data, True), "xT"))
+                    # plot.append_row_idx((idx*2)+2, HeatmapPlotArrays(so.multiply(data, True, False), "xT@x"))
+                    
+            # plot.save(self.get_outpath(image_shift_i))
+            # plot
+            # exit()
+
+    def prepare_outpath(self, batch, base_path, freq):
+        self._batch_id = batch.get_id()
+        self._outpath = Path("plots", f"{base_path}_f{freq}_55s")
+        self._outpath.mkdir(parents=True, exist_ok=True)
+
+    def get_outpath(self, i):
+        return Path(self._outpath, f"{self._batch_id}-{i}.png")
+    
