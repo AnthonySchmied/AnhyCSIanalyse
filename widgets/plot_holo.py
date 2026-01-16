@@ -111,21 +111,20 @@ class Plot:
             4: "purple",
         }
 
-
         for curve in entry:
             print(curve.get_label().get_day())
 
             curves.append(
                 hv.Curve(
-                    (curve.get_x_data(), curve.get_y_data()), kdims=["x"], vdims=["y"], label=f"d{curve.get_label().get_day()[0]}"
+                    (curve.get_x_data(), curve.get_y_data()),
+                    kdims=["x"],
+                    vdims=["y"],
+                    label=f"d{curve.get_label().get_day()[0]}",
                 ).opts(color=colors[curve.get_label().get_day()[0]])
             )
 
         return hv.Overlay(curves).opts(
-            width=2000,
-            height=500,
-            xlabel="Zeit",
-            ylabel=curve.get_y_data().name
+            width=2000, height=500, xlabel="Zeit", ylabel=curve.get_y_data().name
         )
 
     def _draw_heatmap(self, entry):
@@ -195,24 +194,60 @@ class Plot:
         #     100: "purple"
         # }
 
-        colors = {
-            "i": "red",
-            "a": "blue",
-            "e": "orange",
-            "h": "purple",
-            "emt": "green",
-            "ei": "cyan",
-            "ie": "magenta",
-            "ha": "lime",
-            "ah": "brown",
-        }
+        # colors = {
+        #     "i": "#D73027",  # rot
+        #     "a": "#4575B4",  # blau
+        #     "e": "#F46D43",  # orange
+        #     "h": "#7B3294",  # lila
+        #     "emt": "#1A9850",  # grün
+        #     "ei": "#2C7BB6",  # cyan-blau (druckstabil)
+        #     "ie": "#C51B7D",  # magenta
+        #     "ha": "#66A61E",  # olivgrün statt lime
+        #     "ah": "#8C510A",  # braun
+        # }
 
         # colors = {
-        #     1: "red",
-        #     2: "blue",
-        #     3: "orange",
-        #     4: "purple",
+        #     1: "#D73027",  # rot
+        #     2: "#4575B4",  # blau
+        #     3: "#F46D43",  # orange
+        #     4: "#7B3294",  # lila
         # }
+
+        # colors = {
+        #     # Rot
+        #     1:  "#D73027",  # rot (primär)
+        #     11: "#A50026",  # rot (dunkler Partner) Leerraum
+
+        #     # Blau
+        #     2:  "#4575B4",  # blau (primär)
+        #     22: "#313695",  # blau (dunkler Partner) Leerraum
+
+        #     # Orange
+        #     3:  "#F46D43",  # orange (primär)
+        #     33: "#D94801",  # orange (dunkler Partner) Leerraum
+
+        #     # Lila
+        #     4:  "#7B3294",  # lila (primär)
+        #     44: "#542788",  # lila (dunkler Partner) Leerraum
+        # }
+
+        colors = {
+            # Rot
+            "i":  "#D73027",  # rot (primär)
+            "ie": "#A50026",  # rot (dunkler Partner) Leerraum
+
+            # Blau
+            "a":  "#4575B4",  # blau (primär)
+            "ah": "#313695",  # blau (dunkler Partner) Leerraum
+
+            # Orange
+            "e":  "#F46D43",  # orange (primär)
+            "ei": "#D94801",  # orange (dunkler Partner) Leerraum
+
+            # Lila
+            "h":  "#7B3294",  # lila (primär)
+            "ha": "#542788",  # lila (dunkler Partner) Leerraum
+        }
 
         # colors = {
         #     0:"red",
@@ -224,6 +259,20 @@ class Plot:
         #     6:"magenta",
         #     7:"lime",
         # }
+
+        def customize_plot(plot, element):
+            plot.handles["xaxis"].axis_label_text_font_style = "bold"
+            plot.handles["yaxis"].axis_label_text_font_style = "bold"
+            plot.handles["xaxis"].major_label_text_font_size = "20pt"
+            plot.handles["yaxis"].major_label_text_font_size = "20pt"
+            plot.handles["plot"].outline_line_color = "black"
+            plot.handles["plot"].outline_line_alpha = 1
+            # plot.handles['plot'].above[0].outline_line_color = 'black'
+            # plot.handles['plot'].above[0].outline_line_alpha = 1
+            # plot.handles['plot'].right[0].outline_line_color = 'black'
+            # plot.handles['plot'].right[0].outline_line_alpha = 1
+            plot.handles["xaxis"].major_label_text_font_style = "bold"
+            plot.handles["yaxis"].major_label_text_font_style = "bold"
 
         scatters = []
         dim1, dim2 = entry.get_pc()
@@ -239,21 +288,35 @@ class Plot:
             #     label=f"{str(dataset.get_label())}",
             # ).opts(size=5, color=colors[idx], tools=["hover"]) # , xlim=(-7,7), ylim=(-5,5)
 
+            # colorcode = dataset.get_label().get_day()[0]
+            colorcode = dataset.get_label().get_names()[0]
+            # if dataset.get_label().get_names()[0] == "emt":
+            #     colorcode += colorcode * 10
+            #     print(colorcode)
+
             scat = hv.Scatter(
                 (dataset.get_pc_X(dim1), dataset.get_pc_X(dim2)),
-                kdims="pc" + str(dim1),
-                vdims="pc" + str(dim2),
-                label=f"{str(dataset.get_label())}",
+                kdims="PC " + str(dim1),
+                vdims="PC " + str(dim2),
+                # label=f"{str(dataset.get_label())}",
             ).opts(
-                size=5,
-                color=colors[dataset.get_label().get_names()[0]],
+                size=1,
+                # color=colors[dataset.get_label().get_names()[0]],
+                color=colors[colorcode],
                 tools=["hover"],
-            )  # , xlim=(-7,7), ylim=(-5,5)
+                fontsize={"labels": 20},
+                xlim=(-15, 15),
+                ylim=(-15, 15),
+                hooks=[customize_plot],
+            )
 
             scatters.append(scat)
 
         pca_plot = hv.Overlay(scatters).opts(
-            width=1000, height=1000, title=f"PCA", show_legend=True
+            width=500,
+            height=500,
+            # title=f"PCA",
+            show_legend=False,
         )
         return pca_plot
 
@@ -312,5 +375,5 @@ class Plot:
     def save(self, path):
         time = datetime.now()
         self._draw()
-        hv.save(self._layout, path, resources="inline")
+        hv.save(self._layout, path, resources="inline", dpi=300)
         print(f"saved {path} in {datetime.now()-time}")

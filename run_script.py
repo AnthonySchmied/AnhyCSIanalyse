@@ -16,8 +16,8 @@
 # from scripts.multiprocess_batches import MultiprocessBatches
 # csp = MultiprocessBatches()
 
-# from scripts.pca_all import PcaAll
-# csp = PcaAll()
+from scripts.pca_all import PcaAll
+csp = PcaAll()
 
 # from scripts.experiments import Experiments
 # csp = Experiments()
@@ -28,5 +28,5 @@
 # from scripts.environment_sumup import EnvironmentSumup
 # esp = EnvironmentSumup()
 
-from scripts.decisiontree_evaluation import DecisionTreeEvaluation
-esp = DecisionTreeEvaluation()
+# from scripts.decisiontree_evaluation import DecisionTreeEvaluation
+# esp = DecisionTreeEvaluation()
