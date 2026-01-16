@@ -64,3 +64,7 @@ class RecordingSessionCollection:
             ):
                 return True
             return False
+    
+    def printEnvironments(self):
+        for ses in self._sessions:
+            print(ses.environment)

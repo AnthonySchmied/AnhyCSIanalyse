@@ -4,10 +4,12 @@ from components.metadata_unpack import MetadataUnpack as MDP
 
 DEBUG = False
 
-class _BatchSesLabel():
+
+class _BatchSesLabel:
     def __init__(self, batchses, day, names, recvs, datetime, freq):
         self._batchses = batchses
         self._id = None
+        self._id_short = None
         self._day = day
         self._names = names
         self._recvs = recvs
@@ -34,6 +36,7 @@ class _BatchSesLabel():
             self._id = f"{MDP.days_key_from_packed(self._day)}-{MDP.names_key_from_packed(self._names)}-{MDP.receivers_key_from_packed(self._recvs)}-{str(self._freq)}Hz-{str(self._datetime)}"
         return self._id
 
+
 class _BatchSes:
     def __init__(self, ses):
         self._ses = ses
@@ -50,6 +53,9 @@ class _BatchSes:
         self._rec.set_mask_frames_at_time(start_time, offset, length)
         return self._rec.get_amplitudes()
 
+    def get_environment(self):
+        return self._ses.get_environment()
+
     def get_days(self):
         return self._rec.get_date_packed()
 
@@ -61,7 +67,7 @@ class _BatchSes:
 
     def get_datetime(self):
         return self._rec.get_datetime()
-    
+
     def get_frequency(self):
         return self._freq
 
@@ -96,6 +102,9 @@ class Batch:
         return [
             rec.get_masked_amplitude(start_time, offset, length) for rec in self._recs
         ]
+
+    def get_environment(self):
+        return self._recs[0].get_environment()
 
     def __len__(self):
         return len(self._recs)

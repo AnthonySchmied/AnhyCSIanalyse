@@ -485,6 +485,9 @@ class _TreeTraversaRecordinglMinix:
     def get_receivers_name_mac(self):
         return (self._name_receiver, self._mac_receiver)
 
+    @ensure_data_loaded
+    def get_environment(self):
+        return self.session.environment
 
 class _AlterRecordingMinix:
     @ensure_data_loaded

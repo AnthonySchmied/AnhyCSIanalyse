@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class _HeatmapPlotResult:
     def __init__(self, matrix):
         corr = matrix
@@ -36,7 +37,7 @@ class _PointcloudPlotResult:
         self._two_std_range = None
 
     def get_pc_X(self, X):
-        return self._X_pca[:, X-1]
+        return self._X_pca[:, X - 1]
 
     def get_label(self):
         return self._label
@@ -53,22 +54,29 @@ class _PointcloudPlotResult:
         if self._std is None:
             self._std = np.std(self._X_pca, axis=0)
         return self._std
-    
+
     def get_two_std_range(self):
         if self._two_std_range is None:
-            self._two_std_range = (self.get_mean() - 2 * self.get_std(), self.get_mean() + 2 * self.get_std())
+            self._two_std_range = (
+                self.get_mean() - 2 * self.get_std(),
+                self.get_mean() + 2 * self.get_std(),
+            )
         return self._two_std_range
 
     def in_ref_range(self, ref, X):
-        if self.get_mean()[X-1] > ref.get_two_std_range()[0][X-1] and self.get_mean()[X-1] < ref.get_two_std_range()[1][X-1]:
-            print(f"{ref.get_two_std_range()[0][X-1]} < {self.get_mean()[X-1]} < {ref.get_two_std_range()[1][X-1]}")
+        if (
+            self.get_mean()[X - 1] > ref.get_two_std_range()[0][X - 1]
+            and self.get_mean()[X - 1] < ref.get_two_std_range()[1][X - 1]
+        ):
+            print(
+                f"{ref.get_two_std_range()[0][X-1]} < {self.get_mean()[X-1]} < {ref.get_two_std_range()[1][X-1]}"
+            )
             return True
         return False
 
 
-
 class PointcloudPlot:
-    def __init__(self, plots: list, pc1 = 1, pc2 = 2):
+    def __init__(self, plots: list, pc1=1, pc2=2):
         self._results = plots
         self._pc1 = pc1
         self._pc2 = pc2
@@ -78,6 +86,7 @@ class PointcloudPlot:
 
     def get_pc(self):
         return (self._pc1, self._pc2)
+
 
 class AmplitudePlot:
     def __init__(self, amplitudes):
@@ -95,12 +104,13 @@ class _CorrelationIndexPlotResult:
 
     def get_mean(self):
         return self._mean
-        
+
     def get_variance(self):
         return self._variance
 
     def get_label(self):
         return self._label
+
 
 class CorrelationIndexPlot:
     def __init__(self, data):
@@ -112,6 +122,7 @@ class CorrelationIndexPlot:
     @staticmethod
     def to_result(label, mean, var):
         return _CorrelationIndexPlotResult(label, mean, var)
+
 
 class _HeatmapArraysPlotResult:
     def __init__(self, data):
@@ -136,11 +147,11 @@ class HeatmapPlotArrays:
     def get_matrix_mean(self):
         if self._mean is None:
             # print(self.get_matrix())
-            
+
             # for row in self._result._data:
             #     print(row)
             #     print(np.mean(row))
-            
+
             # exit()
             self._mean = np.mean(self._result._data)
 
@@ -176,3 +187,29 @@ class HeatmapPlotArrays:
 
     def get_title(self):
         return f"{self._title} - m: {self.get_matrix_mean():.6f} - v: {self.get_matrix_variance():.6f}"
+
+
+class _EnvironmentPlotLine:
+    def __init__(self, x_data, y_data, label):
+        self._x_data = x_data
+        self._y_data = y_data
+        self._label = label
+
+    def get_x_data(self):
+        return self._x_data
+
+    def get_y_data(self):
+        return self._y_data
+    
+    def get_label(self):
+        return self._label
+
+class EnvironmentPlotContainer:
+    def __init__(self):
+        self._plot_data = []
+
+    def append(self, x_data, y_data, label):
+        self._plot_data.append(_EnvironmentPlotLine(x_data, y_data, label))
+
+    def __iter__(self):
+        return iter(self._plot_data)

@@ -1,15 +1,15 @@
 from pathlib import Path
 import pandas as pd
 
+from scripts.select_batch_minix import _SelectBatchMinix
 from components.recording_session_collection import RecordingSessionCollection
-from components.batch import Batch
 from components.metadata_unpack import MetadataUnpack as MDP
-from components.amplitudes import Amplitudes
 from widgets.plot_holo import Plot
 from components.sens_ops import SensOps as so
 from components.plot_container import PointcloudPlot, _PointcloudPlotResult
 
-class PcaAll():
+
+class PcaAll(_SelectBatchMinix):
     def __init__(self):
         self.sc = RecordingSessionCollection(
             [
@@ -22,18 +22,18 @@ class PcaAll():
 
         batches3 = self._collect_batches(
             receivers=MDP.receivers_unpack([3]),
-            days=MDP.days_unpack([1,2,3]),
+            days=MDP.days_unpack([1,2,3,4]),
             # names=MDP.names_unpack(["a", "e", "emt", "h", "i"]),
-            # names=MDP.names_unpack(["emt"]),
+            names=MDP.names_unpack(["emt"]),
             # names=MDP.names_unpack(["a", "e", "emt", "h", "i", "ei", "ie", "ha", "ah"]),
-            names=MDP.names_unpack(["a", "e", "emt", "h", "i", "ei", "ie", "ha", "ah"]),
+            # names=MDP.names_unpack(["a", "e", "emt", "h", "i", "ei", "ie", "ha", "ah"]),
         )
 
         data = None
         labels_i = 0
         result_lengths_labels = []
 
-        freqs = [10]
+        freqs = [100]
 
         for f in freqs:
             for idx, batch in enumerate(batches3):
@@ -84,73 +84,33 @@ class PcaAll():
         plot.append_row_idx(0, PointcloudPlot(label_pc, 1, 4))
         plot.append_row_idx(0, PointcloudPlot(label_pc, 1, 5))
         plot.append_row_idx(0, PointcloudPlot(label_pc, 1, 6))
-        # plot.append_row_idx(1, PointcloudPlot(label_pc, 2, 1))
-        # plot.append_row_idx(1, PointcloudPlot(label_pc, 2, 3))
-        # plot.append_row_idx(1, PointcloudPlot(label_pc, 2, 4))
-        # plot.append_row_idx(1, PointcloudPlot(label_pc, 2, 5))
-        # plot.append_row_idx(1, PointcloudPlot(label_pc, 2, 6))
-        # plot.append_row_idx(2, PointcloudPlot(label_pc, 3, 1))
-        # plot.append_row_idx(2, PointcloudPlot(label_pc, 3, 2))
-        # plot.append_row_idx(2, PointcloudPlot(label_pc, 3, 4))
-        # plot.append_row_idx(2, PointcloudPlot(label_pc, 3, 5))
-        # plot.append_row_idx(2, PointcloudPlot(label_pc, 3, 6))
-        # plot.append_row_idx(3, PointcloudPlot(label_pc, 4, 1))
-        # plot.append_row_idx(3, PointcloudPlot(label_pc, 4, 2))
-        # plot.append_row_idx(3, PointcloudPlot(label_pc, 4, 3))
-        # plot.append_row_idx(3, PointcloudPlot(label_pc, 4, 5))
-        # plot.append_row_idx(3, PointcloudPlot(label_pc, 4, 6))
-        # plot.append_row_idx(4, PointcloudPlot(label_pc, 5, 1))
-        # plot.append_row_idx(4, PointcloudPlot(label_pc, 5, 2))
-        # plot.append_row_idx(4, PointcloudPlot(label_pc, 5, 3))
-        # plot.append_row_idx(4, PointcloudPlot(label_pc, 5, 4))
-        # plot.append_row_idx(4, PointcloudPlot(label_pc, 5, 6))
-        # plot.append_row_idx(5, PointcloudPlot(label_pc, 6, 1))
-        # plot.append_row_idx(5, PointcloudPlot(label_pc, 6, 2))
-        # plot.append_row_idx(5, PointcloudPlot(label_pc, 6, 3))
-        # plot.append_row_idx(5, PointcloudPlot(label_pc, 6, 4))
-        # plot.append_row_idx(5, PointcloudPlot(label_pc, 6, 5))
-        plot.save(Path("plots", "pca_second_person_alldays.png"))
+        plot.append_row_idx(1, PointcloudPlot(label_pc, 2, 1))
+        plot.append_row_idx(1, PointcloudPlot(label_pc, 2, 3))
+        plot.append_row_idx(1, PointcloudPlot(label_pc, 2, 4))
+        plot.append_row_idx(1, PointcloudPlot(label_pc, 2, 5))
+        plot.append_row_idx(1, PointcloudPlot(label_pc, 2, 6))
+        plot.append_row_idx(2, PointcloudPlot(label_pc, 3, 1))
+        plot.append_row_idx(2, PointcloudPlot(label_pc, 3, 2))
+        plot.append_row_idx(2, PointcloudPlot(label_pc, 3, 4))
+        plot.append_row_idx(2, PointcloudPlot(label_pc, 3, 5))
+        plot.append_row_idx(2, PointcloudPlot(label_pc, 3, 6))
+        plot.append_row_idx(3, PointcloudPlot(label_pc, 4, 1))
+        plot.append_row_idx(3, PointcloudPlot(label_pc, 4, 2))
+        plot.append_row_idx(3, PointcloudPlot(label_pc, 4, 3))
+        plot.append_row_idx(3, PointcloudPlot(label_pc, 4, 5))
+        plot.append_row_idx(3, PointcloudPlot(label_pc, 4, 6))
+        plot.append_row_idx(4, PointcloudPlot(label_pc, 5, 1))
+        plot.append_row_idx(4, PointcloudPlot(label_pc, 5, 2))
+        plot.append_row_idx(4, PointcloudPlot(label_pc, 5, 3))
+        plot.append_row_idx(4, PointcloudPlot(label_pc, 5, 4))
+        plot.append_row_idx(4, PointcloudPlot(label_pc, 5, 6))
+        plot.append_row_idx(5, PointcloudPlot(label_pc, 6, 1))
+        plot.append_row_idx(5, PointcloudPlot(label_pc, 6, 2))
+        plot.append_row_idx(5, PointcloudPlot(label_pc, 6, 3))
+        plot.append_row_idx(5, PointcloudPlot(label_pc, 6, 4))
+        plot.append_row_idx(5, PointcloudPlot(label_pc, 6, 5))
+        plot.save(Path("plots", "all_empty_by_day_100hz_r3.png"))
         exit()
 
 
-    def _collect_batches(
-        self,
-        receivers,
-        days,
-        names,
-        senders=[("Sender-1", "75eb44")],
-        modes=["empty", "1 person", "2 person"]
-        ):
-        batches = []
-        for day in days:
-            for name in names:
-                batches.extend(
-                    self._get_batch(senders, receivers, [day], modes, [name])
-                )
-        return batches        
-            
-    def _get_batch(self, senders, receivers, dates, modes, names):
-        batches = []
-        for ses in filter(
-            lambda ses: RecordingSessionCollection.applyFilter(
-                ses,
-                senders=senders,
-                receivers=receivers,
-                dates=dates,
-                names=names,
-                modes=modes,
-            ),
-            self.sc.get_recordings_set(),
-        ):
-            batches.append(ses)
-        
-        if len(batches) > len(receivers):
-            times = {}
-            for rec in batches:
-                key = rec.get_datetime()
-                if key not in times:
-                    times[key] = []
-                times[key].append(rec)
-            return [Batch(times[time]) for time in times.keys()]
-        else:
-            return [Batch(batches)]
+ 

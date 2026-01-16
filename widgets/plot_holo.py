@@ -9,7 +9,14 @@ import numpy as np
 
 hv.extension("bokeh")
 
-from components.plot_container import HeatmapPlot, PointcloudPlot, AmplitudePlot, HeatmapPlotArrays, CorrelationIndexPlot
+from components.plot_container import (
+    HeatmapPlot,
+    PointcloudPlot,
+    AmplitudePlot,
+    HeatmapPlotArrays,
+    CorrelationIndexPlot,
+    EnvironmentPlotContainer,
+)
 
 # from components.sens_ops import SensOps as so
 
@@ -54,13 +61,14 @@ class Plot:
                     plots.append(self._draw_heatmap_array(entry))
                 elif isinstance(entry, CorrelationIndexPlot):
                     plots.append(self._draw_correlation_index_plot(entry))
-
+                elif isinstance(entry, EnvironmentPlotContainer):
+                    plots.append(self._draw_environment_plot(entry))
                 # grid[f"{i}_{col_idx}"] = elt
                 # col_idx += 1
 
         # self._layout = hv.Layout(plots)
         self._layout = hv.Layout(plots).cols(self.width()).opts(shared_axes=False)
-       
+
         # exit()
         #     plot_rows.append(hv.Layout(row_plts).cols(len(row)))
         # self._layout = hv.Layout(plot_rows).cols(1)
@@ -74,15 +82,15 @@ class Plot:
             #     if isinstance(v, str):
             #         print("STRING VALUE FOUND in", key, ":", v)
             #         raise ValueError("String value in amplitude data!")
-                                     
+
             # exit()
-            # x = range(len(values))    
+            # x = range(len(values))
             # x = [i for i in range(len(values))]
             # print(values)
             # print(len(values))
             # curves.append(hv.Curve(values))
             # x = range(len(values))
-            x = [ i for i in range(len(values))]
+            x = [i for i in range(len(values))]
             # curves.append(hv.Curve((x, values)))
             curves.append(hv.Curve((x, values), kdims=["x"], vdims=["y"]).relabel(key))
 
@@ -91,6 +99,33 @@ class Plot:
             height=300,
             xlabel="Time",
             ylabel="Amplitude",
+        )
+
+    def _draw_environment_plot(self, entry):
+        curves = []
+
+        colors = {
+            1: "red",
+            2: "blue",
+            3: "orange",
+            4: "purple",
+        }
+
+
+        for curve in entry:
+            print(curve.get_label().get_day())
+
+            curves.append(
+                hv.Curve(
+                    (curve.get_x_data(), curve.get_y_data()), kdims=["x"], vdims=["y"], label=f"d{curve.get_label().get_day()[0]}"
+                ).opts(color=colors[curve.get_label().get_day()[0]])
+            )
+
+        return hv.Overlay(curves).opts(
+            width=2000,
+            height=500,
+            xlabel="Zeit",
+            ylabel=curve.get_y_data().name
         )
 
     def _draw_heatmap(self, entry):
@@ -114,11 +149,7 @@ class Plot:
         rows, cols = d.shape
         xs, ys = np.meshgrid(range(cols), range(rows))
 
-        df = pd.DataFrame({
-            "x": xs.flatten(),
-            "y": ys.flatten(),
-            "value": d.flatten()
-        })
+        df = pd.DataFrame({"x": xs.flatten(), "y": ys.flatten(), "value": d.flatten()})
 
         hv_map = hv.HeatMap(df, kdims=["x", "y"], vdims=["value"]).opts(
             cmap="viridis",
@@ -126,10 +157,10 @@ class Plot:
             colorbar=True,
             # width=30*entry.get_width()+100,
             # height=30*entry.get_height()+60,
-            width=3*entry.get_width()+100,
-            height=3*entry.get_height()+60,
-            title=entry.get_title()
-            #title=f"Corr mean: {entry.get_index():.6f}",  # clim=(-1, 1)
+            width=3 * entry.get_width() + 100,
+            height=3 * entry.get_height() + 60,
+            title=entry.get_title(),
+            # title=f"Corr mean: {entry.get_index():.6f}",  # clim=(-1, 1)
         )
 
         # hv_map = hv.HeatMap(df, kdims=["x", "y"]).opts(
@@ -140,7 +171,7 @@ class Plot:
         #     #title=f"Corr mean: {entry.get_index():.6f}",  # clim=(-1, 1)
         # )
         return hv_map
-    
+
     def _draw_pointcloud(self, entry):
         # colors = {
         #     "i-r":"red",
@@ -165,16 +196,34 @@ class Plot:
         # }
 
         colors = {
-            "i":"red",
-            "a":"blue",
-            "e":"orange",
-            "h":"purple",
-            "emt":"green",
+            "i": "red",
+            "a": "blue",
+            "e": "orange",
+            "h": "purple",
+            "emt": "green",
             "ei": "cyan",
             "ie": "magenta",
             "ha": "lime",
             "ah": "brown",
         }
+
+        # colors = {
+        #     1: "red",
+        #     2: "blue",
+        #     3: "orange",
+        #     4: "purple",
+        # }
+
+        # colors = {
+        #     0:"red",
+        #     1:"blue",
+        #     2:"orange",
+        #     3:"purple",
+        #     4:"green",
+        #     5:"cyan",
+        #     6:"magenta",
+        #     7:"lime",
+        # }
 
         scatters = []
         dim1, dim2 = entry.get_pc()
@@ -183,17 +232,28 @@ class Plot:
             print(str(dataset.get_label()))
             # print(colors[dataset.get_label().get_frequency()])
 
+            # scat = hv.Scatter(
+            #     (dataset.get_pc_X(dim1), dataset.get_pc_X(dim2)),
+            #     kdims="pc"+str(dim1),
+            #     vdims="pc"+str(dim2),
+            #     label=f"{str(dataset.get_label())}",
+            # ).opts(size=5, color=colors[idx], tools=["hover"]) # , xlim=(-7,7), ylim=(-5,5)
+
             scat = hv.Scatter(
                 (dataset.get_pc_X(dim1), dataset.get_pc_X(dim2)),
-                kdims="pc"+str(dim1),
-                vdims="pc"+str(dim2),
+                kdims="pc" + str(dim1),
+                vdims="pc" + str(dim2),
                 label=f"{str(dataset.get_label())}",
-            ).opts(size=5, color=colors[dataset.get_label().get_names()[0]], tools=["hover"]) # , xlim=(-7,7), ylim=(-5,5)
+            ).opts(
+                size=5,
+                color=colors[dataset.get_label().get_names()[0]],
+                tools=["hover"],
+            )  # , xlim=(-7,7), ylim=(-5,5)
 
             scatters.append(scat)
 
         pca_plot = hv.Overlay(scatters).opts(
-            width=1900, height=1000, title=f"PCA", show_legend=True
+            width=1000, height=1000, title=f"PCA", show_legend=True
         )
         return pca_plot
 
@@ -201,11 +261,11 @@ class Plot:
         # colors = ["red", "blue", "green", "orange", "purple"]
 
         colors = {
-            "i-r":"red",
-            "a-r":"blue",
-            "e-r":"orange",
-            "h-r":"purple",
-            "emt":"green"
+            "i-r": "red",
+            "a-r": "blue",
+            "e-r": "orange",
+            "h-r": "purple",
+            "emt": "green",
         }
 
         scatters = []
@@ -215,7 +275,6 @@ class Plot:
             # print(dataset)
 
             # print(dataset.get_label()[3:6])
-
 
             scat = hv.Scatter(
                 (dataset.get_mean(), dataset.get_variance()),
@@ -237,13 +296,13 @@ class Plot:
             height=300,
             size=1,
             color="white",
-            alpha=0,          # fully transparent
+            alpha=0,  # fully transparent
             tools=[],
             title="",
             show_legend=False,
         )
         return dummy
-    
+
     def width(self):
         return max([len(r) for r in self._rows])
 

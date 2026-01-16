@@ -3,7 +3,7 @@ from datetime import datetime
 import re
 
 from components.recording import Recording
-
+from components.recording_environment import RecordingEnvironment
 
 class RecordingSession:
     def __init__(self, directory):
@@ -26,7 +26,7 @@ class RecordingSession:
             if file_path.suffix == ".csv":
                 if file_path.is_file():
                     if "env_" in file_path.name:
-                        pass
+                        self.environment = RecordingEnvironment(self, file_path)
                     elif "csi_" in file_path.name:
                         rec = Recording(self, file_path)
                         self.recordings.append(rec)
