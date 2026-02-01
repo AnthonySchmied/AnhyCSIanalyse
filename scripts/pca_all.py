@@ -20,9 +20,9 @@ class PcaAll(_SelectBatchMinix):
             ]
         )
 
-        NAMES = ["i", "ie"]
-        RECVS = [1,2,3]
-        FREQS = [10,25,50,100]
+        # NAMES = ["i", "ie"]
+        RECVS = [3]
+        # FREQS = [10,25,50,100]
         DAYS = [1,2,3,4]
 
         for RECV in RECVS:
@@ -34,12 +34,12 @@ class PcaAll(_SelectBatchMinix):
                     # names=MDP.names_unpack(["a", "e", "emt", "h", "i"]),
                     # names=MDP.names_unpack(["a", "e", "h", "i"]),
                     # names=MDP.names_unpack(["emt"]),
-                    names=MDP.names_unpack(NAMES),
-                    # names=MDP.names_unpack(["a", "e", "emt", "h", "i", "ei", "ie", "ha", "ah"]),
+                    # names=MDP.names_unpack(NAMES),
+                    names=MDP.names_unpack(["a", "e", "emt", "h", "i", "ei", "ie", "ha", "ah"]),
                     # names=MDP.names_unpack(["a", "e", "emt", "h", "i", "ei", "ie", "ha", "ah"]),
                 )
                 # FILENAME = f"empty_oneperson_by_entity_100hz_r{RECV}.png"
-                FILENAME = f"{NAMES[0]}_{NAMES[1]}_d{DAY}_10hz_25hz_50hz_100hz_r{RECV}.png"
+                FILENAME = f"empty_double_d{DAY}_100hz_r{RECV}.png"
 
                 data = None
                 labels_i = 0
@@ -47,54 +47,54 @@ class PcaAll(_SelectBatchMinix):
 
                 plot = Plot(6)
 
-                for f in FREQS:
-                    for idx, batch in enumerate(batches3):
+                # for f in FREQS:
+                for idx, batch in enumerate(batches3):
 
-                        batch.load_from_storage_freq(f)
-                        amp = batch.get_masked_amplitude(0,0,6000)[0]
-                        result_lengths_labels.append((len(so.mask(amp.df)),batch[0].get_id()))
-                        if data is None:
-                            data = amp
-                        else:
-                            data.df = pd.concat([data.df, so.mask(amp.df)], ignore_index=True)
+                    batch.load_from_storage_freq(100)
+                    amp = batch.get_masked_amplitude(0,0,6000)[0]
+                    result_lengths_labels.append((len(so.mask(amp.df)),batch[0].get_id()))
+                    if data is None:
+                        data = amp
+                    else:
+                        data.df = pd.concat([data.df, so.mask(amp.df)], ignore_index=True)
 
-                        print(data.df.shape)
-                        labels_i += 1
-                    print(f"{f}: {len(result_lengths_labels)}")
-
-
+                    print(data.df.shape)
+                    labels_i += 1
+                # print(f"{f}: {len(result_lengths_labels)}")
 
 
-                    pc = so.pca_X(data, 4)
-
-                    # print(len(pc._X_pca))
-                    # print(len(pc._eigenvalues))
-                    # print(len(pc._eigenvalues))
 
 
-                    # print(result_lengths_labels)
-                    # print(len(result_lengths_labels))
+                pc = so.pca_X(data, 4)
 
-                    # pc.set_label(batch[0].get_id())
+                # print(len(pc._X_pca))
+                # print(len(pc._eigenvalues))
+                # print(len(pc._eigenvalues))
 
 
-                    label_pc = []
-                    i = 0
+                # print(result_lengths_labels)
+                # print(len(result_lengths_labels))
 
-                    print(pc._X_pca.shape)
-                    for idx, (l, label) in enumerate(result_lengths_labels):
-                        # print(i, l+i)
-                        res = _PointcloudPlotResult(X_pca=pc._X_pca[i:l+i], eigenvectors=pc._eigenvectors, eigenvalues=pc._eigenvalues, label=label)
-                        i += l
+                # pc.set_label(batch[0].get_id())
 
-                        print(res._X_pca.shape)
 
-                        label_pc.append(res)
+                label_pc = []
+                i = 0
 
-                    plot.append_row_idx(0, PointcloudPlot(label_pc, 2, 1))
-            # plot.append_row_idx(0, PointcloudPlot(label_pc, 3, 1))
-            # plot.append_row_idx(0, PointcloudPlot(label_pc, 4, 1))
-            # plot.append_row_idx(0, PointcloudPlot(label_pc, 1, 5))
+                print(pc._X_pca.shape)
+                for idx, (l, label) in enumerate(result_lengths_labels):
+                    # print(i, l+i)
+                    res = _PointcloudPlotResult(X_pca=pc._X_pca[i:l+i], eigenvectors=pc._eigenvectors, eigenvalues=pc._eigenvalues, label=label)
+                    i += l
+
+                    print(res._X_pca.shape)
+
+                    label_pc.append(res)
+
+                plot.append_row_idx(0, PointcloudPlot(label_pc, 2, 1))
+                plot.append_row_idx(0, PointcloudPlot(label_pc, 3, 1))
+                plot.append_row_idx(0, PointcloudPlot(label_pc, 4, 1))
+        # plot.append_row_idx(0, PointcloudPlot(label_pc, 1, 5))
             # plot.append_row_idx(0, PointcloudPlot(label_pc, 1, 6))
             # plot.append_row_idx(1, PointcloudPlot(label_pc, 2, 1))
             # plot.append_row_idx(1, PointcloudPlot(label_pc, 2, 3))

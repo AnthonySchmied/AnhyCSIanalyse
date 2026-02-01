@@ -16,8 +16,8 @@
 # from scripts.multiprocess_batches import MultiprocessBatches
 # csp = MultiprocessBatches()
 
-from scripts.pca_all import PcaAll
-csp = PcaAll()
+# from scripts.pca_all import PcaAll
+# csp = PcaAll()
 
 # from scripts.experiments import Experiments
 # csp = Experiments()
@@ -30,3 +30,12 @@ csp = PcaAll()
 
 # from scripts.decisiontree_evaluation import DecisionTreeEvaluation
 # esp = DecisionTreeEvaluation()
+
+# from scripts.pca_line_plot import PcaLine
+# esp = PcaLine()
+
+# from scripts.rec_stats import RecStats
+# esp = RecStats()
+
+from scripts.rec_stats2 import RecStats
+esp = RecStats()

@@ -2,7 +2,7 @@ from datetime import datetime
 
 from components.metadata_unpack import MetadataUnpack as MDP
 
-DEBUG = False
+DEBUG = True
 
 
 class _BatchSesLabel:

@@ -3,6 +3,7 @@ from components.amplitudes import Amplitudes
 from components.phases import Phases
 from components.complex_values import ComplexValues
 from components.metadata_unpack import MetadataUnpack as MDP
+from components.batch import _BatchSesLabel
 import pandas as pd
 import numpy as np
 import datetime
@@ -44,6 +45,7 @@ class _InitRecordingMinix:
         self._subrecordings_split_by_freq = None
         self._amplitudes = None
         self._mean_amplitudes = None
+        self._batchseslabel = None
 
 
 class _ReadRecordingMinix:
@@ -326,6 +328,12 @@ class _MetaDataRecordingMinix:
                         if as_str
                         else self._mean_rx_interval
                     )
+            else:
+                return (
+                        f"{self._mean_rx_interval:.2f} ms"
+                        if as_str
+                        else self._mean_rx_interval
+                    )
         return f"{None}" if as_str else None
 
     def get_median_rx_intervall(self, as_str=False):
@@ -351,6 +359,7 @@ class _MetaDataRecordingMinix:
             return f"{self._min_rx_interval} ms" if as_str else self._min_rx_interval
         return f"{None}" if as_str else None
 
+    @ensure_data_loaded
     def get_frequencies(self) -> list:
         if self._frequencies is None:
             frequencies = []
@@ -400,6 +409,10 @@ class _MetaDataRecordingMinix:
     def get_label(self):
         return f"{MDP.names_pack([self.get_name()])}_{MDP.days_pack([self.get_date()])}"
 
+    def get_batchseslabel(self):
+        if self._batchseslabel is None:
+            self._batchseslabel = _BatchSesLabel(None, self.get_date_packed(), self.get_name_packed(), self.get_recv_packed(), self.get_datetime(), self.get_frequencies())
+        return self._batchseslabel
 
     def get_date_packed(self):
         return MDP.days_pack([self.get_date()])
@@ -671,7 +684,7 @@ class Recording(
                 duration: {self.get_duration(as_str=True)} \t\t\t frequencies: {self.get_frequencies()}\n \
                 tx_packets: {self.get_tx_packets_count(as_str=True)} \t tx_packets_lost: {self.get_tx_packets_lost(as_str=True)} \t tx_lost_ratio: {self.get_tx_lost_ratio(as_str=True)}\n \
                 rx_packets: {self.get_rx_packets_count(as_str=True)} \t rx_packets_lost: {self.get_rx_packets_lost(as_str=True)} \t rx_lost_ratio: {self.get_rx_lost_ratio(as_str=True)}\n \
-                mean_rx: {ſelf.get_mean_rx_interval(as_str=True)} \t meadian_rx: {self.get_median_rx_intervall(as_str=True)} \n \
+                mean_rx: {self.get_mean_rx_interval(as_str=True)} \t meadian_rx: {self.get_median_rx_intervall(as_str=True)} \n \
                 min_rx_intervals: {self.get_min_rx_interval(as_str=True)} \n \
                 max_rx_intervals: {self.get_max_rx_interval(as_str=True)} \n \
                 mean_tx: {ſelf.get_mean_tx_interval(as_str=True)} \t meadian_tx: {self.get_median_tx_intervall(as_str=True)} \n"  # min_tx_intervals: {ſelf.get_min_tx_interval(as_str=True)} \n \

@@ -205,11 +205,23 @@ class _EnvironmentPlotLine:
         return self._label
 
 class EnvironmentPlotContainer:
-    def __init__(self):
-        self._plot_data = []
+    def __init__(self, axes_X_label=None, axes_Y_label=None, plot_data=None, y_lim=None):
+        self._plot_data = [] if plot_data is None else plot_data
+        self._axes_X_label = "" if axes_X_label is None else axes_X_label
+        self._axes_Y_label = "" if axes_Y_label is None else axes_Y_label
+        self._y_lim = y_lim
 
     def append(self, x_data, y_data, label):
         self._plot_data.append(_EnvironmentPlotLine(x_data, y_data, label))
+
+    def get_axes_X_label(self):
+        return self._axes_X_label
+
+    def get_axes_Y_label(self):
+        return self._axes_Y_label
+    
+    def get_y_lim(self):
+        return self._y_lim
 
     def __iter__(self):
         return iter(self._plot_data)

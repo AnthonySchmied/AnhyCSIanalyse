@@ -61,7 +61,7 @@ class Plot:
                     plots.append(self._draw_heatmap_array(entry))
                 elif isinstance(entry, CorrelationIndexPlot):
                     plots.append(self._draw_correlation_index_plot(entry))
-                elif isinstance(entry, EnvironmentPlotContainer):
+                elif isinstance(entry, EnvironmentPlotContainer):  #
                     plots.append(self._draw_environment_plot(entry))
                 # grid[f"{i}_{col_idx}"] = elt
                 # col_idx += 1
@@ -105,26 +105,55 @@ class Plot:
         curves = []
 
         colors = {
-            1: "red",
-            2: "blue",
-            3: "orange",
-            4: "purple",
+            1: "#D73027",  # rot
+            2: "#4575B4",  # blau
+            3: "#F46D43",  # orange
+            4: "#7B3294",  # lila
         }
+
+        # colors = {
+        #     "i": "#D73027",  # rot
+        #     "a": "#4575B4",  # blau
+        #     "e": "#F46D43",  # orange
+        #     "h": "#7B3294",  # lila
+        #     "emt": "#1A9850",  # grün
+        #     "ei": "#2C7BB6",  # cyan-blau (druckstabil)
+        #     "ie": "#C51B7D",  # magenta
+        #     "ha": "#66A61E",  # olivgrün statt lime
+        #     "ah": "#8C510A",  # braun
+        # }
 
         for curve in entry:
             print(curve.get_label().get_day())
+            # print(curve.get_y_data())
+            # print(curve.get_x_data())
 
+            # print(str(curve.get_label()))
+            # exit()
             curves.append(
                 hv.Curve(
-                    (curve.get_x_data(), curve.get_y_data()),
+                    (np.array(curve.get_x_data()), np.array(curve.get_y_data())),
                     kdims=["x"],
                     vdims=["y"],
-                    label=f"d{curve.get_label().get_day()[0]}",
-                ).opts(color=colors[curve.get_label().get_day()[0]])
+                    # label=f"d{curve.get_label()}",
+                ).opts(
+                    color=colors[curve.get_label().get_day()[0]],
+                    hooks=[self.customize_plot],
+                    fontsize={"labels": 20},
+                    # ylim=(-12, 12),
+                )
             )
 
+        # return hv.Overlay(curves).opts(
+        #     width=2000, height=500, xlabel="Zeit", ylabel=curve.get_y_data().name
+        # )
         return hv.Overlay(curves).opts(
-            width=2000, height=500, xlabel="Zeit", ylabel=curve.get_y_data().name
+            width=2000,
+            # height=500,
+            height=700,
+            # ylim=entry.get_y_lim(),
+            xlabel=entry.get_axes_X_label(),
+            ylabel=entry.get_axes_Y_label(),
         )
 
     def _draw_heatmap(self, entry):
@@ -171,6 +200,24 @@ class Plot:
         # )
         return hv_map
 
+
+    def customize_plot(self, plot, element):
+        plot.handles["xaxis"].axis_label_text_font_style = "bold"
+        plot.handles["yaxis"].axis_label_text_font_style = "bold"
+        plot.handles["xaxis"].major_label_text_font_size = "20pt"
+        plot.handles["yaxis"].major_label_text_font_size = "20pt"
+        # plot.handles["xaxis"].major_label_text_font_size = "30pt"
+        # plot.handles["yaxis"].major_label_text_font_size = "30pt"
+        plot.handles["plot"].outline_line_color = "black"
+        plot.handles["plot"].outline_line_alpha = 1
+        # plot.handles['plot'].above[0].outline_line_color = 'black'
+        # plot.handles['plot'].above[0].outline_line_alpha = 1
+        # plot.handles['plot'].right[0].outline_line_color = 'black'
+        # plot.handles['plot'].right[0].outline_line_alpha = 1
+        plot.handles["xaxis"].major_label_text_font_style = "bold"
+        plot.handles["yaxis"].major_label_text_font_style = "bold"
+
+
     def _draw_pointcloud(self, entry):
         # colors = {
         #     "i-r":"red",
@@ -194,17 +241,17 @@ class Plot:
         #     100: "purple"
         # }
 
-        # colors = {
-        #     "i": "#D73027",  # rot
-        #     "a": "#4575B4",  # blau
-        #     "e": "#F46D43",  # orange
-        #     "h": "#7B3294",  # lila
-        #     "emt": "#1A9850",  # grün
-        #     "ei": "#2C7BB6",  # cyan-blau (druckstabil)
-        #     "ie": "#C51B7D",  # magenta
-        #     "ha": "#66A61E",  # olivgrün statt lime
-        #     "ah": "#8C510A",  # braun
-        # }
+        colors = {
+            "i": "#D73027",  # rot
+            "a": "#4575B4",  # blau
+            "e": "#F46D43",  # orange
+            "h": "#7B3294",  # lila
+            "emt": "#1A9850",  # grün
+            "ei": "#00518F",  # cyan-blau (druckstabil)
+            "ie": "#C51B7D",  # magenta
+            "ha": "#66A61E",  # olivgrün statt lime
+            "ah": "#8C510A",  # braun
+        }
 
         # colors = {
         #     1: "#D73027",  # rot
@@ -231,23 +278,20 @@ class Plot:
         #     44: "#542788",  # lila (dunkler Partner) Leerraum
         # }
 
-        colors = {
-            # Rot
-            "i":  "#D73027",  # rot (primär)
-            "ie": "#A50026",  # rot (dunkler Partner) Leerraum
-
-            # Blau
-            "a":  "#4575B4",  # blau (primär)
-            "ah": "#313695",  # blau (dunkler Partner) Leerraum
-
-            # Orange
-            "e":  "#F46D43",  # orange (primär)
-            "ei": "#D94801",  # orange (dunkler Partner) Leerraum
-
-            # Lila
-            "h":  "#7B3294",  # lila (primär)
-            "ha": "#542788",  # lila (dunkler Partner) Leerraum
-        }
+        # colors = {
+        #     # Rot
+        #     "i": "#D73027",  # rot (primär)
+        #     "ie": "#A50026",  # rot (dunkler Partner) Leerraum
+        #     # Blau
+        #     "a": "#4575B4",  # blau (primär)
+        #     "ah": "#313695",  # blau (dunkler Partner) Leerraum
+        #     # Orange
+        #     "e": "#F46D43",  # orange (primär)
+        #     "ei": "#D94801",  # orange (dunkler Partner) Leerraum
+        #     # Lila
+        #     "h": "#7B3294",  # lila (primär)
+        #     "ha": "#542788",  # lila (dunkler Partner) Leerraum
+        # }
 
         # colors = {
         #     0:"red",
@@ -259,20 +303,6 @@ class Plot:
         #     6:"magenta",
         #     7:"lime",
         # }
-
-        def customize_plot(plot, element):
-            plot.handles["xaxis"].axis_label_text_font_style = "bold"
-            plot.handles["yaxis"].axis_label_text_font_style = "bold"
-            plot.handles["xaxis"].major_label_text_font_size = "20pt"
-            plot.handles["yaxis"].major_label_text_font_size = "20pt"
-            plot.handles["plot"].outline_line_color = "black"
-            plot.handles["plot"].outline_line_alpha = 1
-            # plot.handles['plot'].above[0].outline_line_color = 'black'
-            # plot.handles['plot'].above[0].outline_line_alpha = 1
-            # plot.handles['plot'].right[0].outline_line_color = 'black'
-            # plot.handles['plot'].right[0].outline_line_alpha = 1
-            plot.handles["xaxis"].major_label_text_font_style = "bold"
-            plot.handles["yaxis"].major_label_text_font_style = "bold"
 
         scatters = []
         dim1, dim2 = entry.get_pc()
@@ -307,7 +337,7 @@ class Plot:
                 fontsize={"labels": 20},
                 xlim=(-15, 15),
                 ylim=(-15, 15),
-                hooks=[customize_plot],
+                hooks=[self.customize_plot],
             )
 
             scatters.append(scat)

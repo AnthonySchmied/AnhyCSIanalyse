@@ -34,14 +34,19 @@ class EnvironmentPlot(_SelectBatchMinix):
         env_plot = EnvironmentPlotContainer()
         plot = Plot(1)
 
+        topic = "temperature"
+        # topic = "humidity"
+        # topic = "pressure"
+
         for idx, batch in enumerate(batches):
             batch.load_from_storage_freq(10) # needs to be run to load all the data for the id/label
             env = batch.get_environment()
             df = env.get_df()
-            env_plot.append(range(len(df["timestamp_pc"])), df["pressure"], batch[0].get_id())
+            env_plot.append(range(len(df["timestamp_pc"])), df[topic], batch[0].get_id())
+            
 
 
         plot.append_row_idx(0, env_plot)
-        plot.save(Path("plots", "environment_pressure_all_days.png"))
+        plot.save(Path("plots", f"environment_{topic}_all_days.png"))
 
 

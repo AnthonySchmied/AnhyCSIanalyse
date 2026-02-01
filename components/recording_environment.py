@@ -198,6 +198,21 @@ class _MetaDataRecordingMinix:
             return f"{self._max_pressure:.2f} Pa" if as_str else self._max_pressure
         return f"{None}" if as_str else None
 
+    @ensure_data_loaded
+    def get_temperature_values(self):
+        return list(self.df["temperature"])
+
+
+    @ensure_data_loaded
+    def get_humidity_values(self):
+        return list(self.df["humidity"])
+
+
+    @ensure_data_loaded
+    def get_pressure_values(self):
+        return list(self.df["pressure"])
+
+
 class RecordingEnvironment(
     _InitRecordingMinix, _ReadEnvironmentMinix, _MetaDataRecordingMinix
 ):
