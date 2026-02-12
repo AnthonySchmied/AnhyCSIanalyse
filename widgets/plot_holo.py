@@ -104,11 +104,18 @@ class Plot:
     def _draw_environment_plot(self, entry):
         curves = []
 
+        # colors = {
+        #     1: "#D73027",  # rot
+        #     2: "#4575B4",  # blau
+        #     3: "#F46D43",  # orange
+        #     4: "#7B3294",  # lila
+        # }
+
         colors = {
-            1: "#D73027",  # rot
-            2: "#4575B4",  # blau
-            3: "#F46D43",  # orange
-            4: "#7B3294",  # lila
+            10 : "#00518F",  # cyan-blau (druckstabil)
+            25 : "#C51B7D",  # magenta
+            50 : "#66A61E",  # olivgrün statt lime
+            100 : "#8C510A",  # braun
         }
 
         # colors = {
@@ -137,10 +144,14 @@ class Plot:
                     vdims=["y"],
                     # label=f"d{curve.get_label()}",
                 ).opts(
-                    color=colors[curve.get_label().get_day()[0]],
+                    # color=colors[curve.get_label().get_day()[0]],
+                    color=colors[curve.get_label().get_frequency()],
                     hooks=[self.customize_plot],
-                    fontsize={"labels": 20},
+                    # fontsize={"labels": 20},
+                    fontsize={"labels": 30},
+                    line_width = 5,
                     # ylim=(-12, 12),
+                    xlim=(0,50)
                 )
             )
 
@@ -151,7 +162,7 @@ class Plot:
             width=2000,
             # height=500,
             height=700,
-            # ylim=entry.get_y_lim(),
+            ylim=entry.get_y_lim(),
             xlabel=entry.get_axes_X_label(),
             ylabel=entry.get_axes_Y_label(),
         )

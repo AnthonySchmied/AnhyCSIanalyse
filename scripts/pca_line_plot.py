@@ -21,9 +21,9 @@ class PcaLine(_SelectBatchMinix):
             ]
         )
 
-        RECVS = [3,2,1]
-        NAMES = ["a", "e", "emt", "h", "i"]
-        # NAMES = ["emt"]
+        RECVS = [2]
+        # NAMES = ["a", "e", "emt", "h", "i"]
+        NAMES = ["e"]
 
         for NAME in NAMES:
             for RECV in RECVS:
@@ -39,7 +39,7 @@ class PcaLine(_SelectBatchMinix):
                     # names=MDP.names_unpack(["a", "e", "emt", "h", "i", "ei", "ie", "ha", "ah"]),
                 )
 
-                FREQS = [100]
+                FREQS = [10,25,50,100]
 
                 for FREQ in FREQS:
 
@@ -78,26 +78,26 @@ class PcaLine(_SelectBatchMinix):
                             i += l
                             label_pc.append(res)
 
-                            # Fourier Transform
-                            fft_vals = np.fft.rfft(label_pc_X)
-                            fft_freqs = np.fft.rfftfreq(len(label_pc_X), 1/FREQ)
-                            # print(fft_vals)
-                            # print(fft_freqs)
-                            # exit()
-                            fft_res = _EnvironmentPlotLine(fft_freqs, np.abs(fft_vals), label)
-                            label_pc_fft.append(fft_res)
+                            # # Fourier Transform
+                            # fft_vals = np.fft.rfft(label_pc_X)
+                            # fft_freqs = np.fft.rfftfreq(len(label_pc_X), 1/FREQ)
+                            # # print(fft_vals)
+                            # # print(fft_freqs)
+                            # # exit()
+                            # fft_res = _EnvironmentPlotLine(fft_freqs, np.abs(fft_vals), label)
+                            # label_pc_fft.append(fft_res)
 
                         plot.append_row_idx(0, EnvironmentPlotContainer(plot_data=label_pc, axes_Y_label=f"PC {pc_X+1}", axes_X_label="CSI Sequenz", y_lim=(-15,15)))
-                        y_max = 50
-                        if pc_X == 0:
-                            y_max = 400
-                        if pc_X == 1:
-                            y_max = 300
-                        if pc_X == 2:
-                            y_max = 200
-                        if pc_X == 3:
-                            y_max = 100
-                        plot.append_row_idx(1, EnvironmentPlotContainer(plot_data=label_pc_fft, axes_Y_label=f"PC {pc_X+1}", axes_X_label="Frequenz", y_lim=(0, y_max)))
+                        # y_max = 50
+                        # if pc_X == 0:
+                        #     y_max = 400
+                        # if pc_X == 1:
+                        #     y_max = 300
+                        # if pc_X == 2:
+                        #     y_max = 200
+                        # if pc_X == 3:
+                        #     y_max = 100
+                        # plot.append_row_idx(1, EnvironmentPlotContainer(plot_data=label_pc_fft, axes_Y_label=f"PC {pc_X+1}", axes_X_label="Frequenz", y_lim=(0, y_max)))
                         plot.save(Path("plots", "latex", f"{NAME}_r{RECV}_d{1}_pc{pc_X+1}_f{FREQ}hz.png"))
 
 

@@ -16,8 +16,8 @@
 # from scripts.multiprocess_batches import MultiprocessBatches
 # csp = MultiprocessBatches()
 
-# from scripts.pca_all import PcaAll
-# csp = PcaAll()
+from scripts.pca_all import PcaAll
+csp = PcaAll()
 
 # from scripts.experiments import Experiments
 # csp = Experiments()
@@ -37,5 +37,8 @@
 # from scripts.rec_stats import RecStats
 # esp = RecStats()
 
-from scripts.rec_stats2 import RecStats
-esp = RecStats()
+# from scripts.rec_stats2 import RecStats
+# esp = RecStats()
+
+# from scripts.pca_line import PcaLine
+# esp = PcaLine()

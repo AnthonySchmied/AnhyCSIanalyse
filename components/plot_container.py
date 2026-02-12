@@ -194,6 +194,9 @@ class _EnvironmentPlotLine:
         self._x_data = x_data
         self._y_data = y_data
         self._label = label
+        print(x_data)
+        print(y_data)
+        print(label)
 
     def get_x_data(self):
         return self._x_data
