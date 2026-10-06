@@ -725,3 +725,17 @@ class Recording(
             self.df.to_pickle(path)
         else:
             [rec.save_to_file_if_split() for rec in self._subrecordings_split_by_freq]
+
+    @ensure_data_loaded
+    def save_to_parquet_file_if_split(self, append_recording):
+        if len(self.get_frequencies()) == 1:
+            # recidx-yyyymmdd-hhmmss-sendermac-receivermac-frequency-mainlabelsecondlabel
+            rec_key = f"{MDP.days_pack([self.get_date()])[0]}-{str(self.get_date()).replace("-","")}-{str(self.get_time()).replace(":","")}-{self.get_senders_name_mac()[1]}-{self.get_receivers_name_mac()[1]}-{int(self.get_frequencies()[0]):03d}-{MDP.names_pack([self.get_name()])[0]}"
+            print(rec_key)
+            idx = append_recording(rec_key, self.get_receivers_name_mac()[1], self.get_senders_name_mac()[1], MDP.days_pack([self.get_date()])[0], MDP.names_pack([self.get_name()])[0], int(self.get_frequencies()[0]), self.get_date(), self.get_time())
+            print(idx)
+
+
+            
+        else:
+            [rec.save_to_parquet_file_if_split(append_recording) for rec in self._subrecordings_split_by_freq]

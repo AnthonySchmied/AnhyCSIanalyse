@@ -127,3 +127,8 @@ class RecordingSession:
 
     def get_mode(self):
         return self._mode
+
+    def save_split_by_frequency_to_parquet_file(self, append_recording):
+        self.split_by_frequency()
+        for rec in self.recordings:
+            rec.save_to_parquet_file_if_split(append_recording)

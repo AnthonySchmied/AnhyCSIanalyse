@@ -16,8 +16,8 @@
 # from scripts.multiprocess_batches import MultiprocessBatches
 # csp = MultiprocessBatches()
 
-from scripts.pca_all import PcaAll
-csp = PcaAll()
+# from scripts.pca_all import PcaAll
+# csp = PcaAll()
 
 # from scripts.experiments import Experiments
 # csp = Experiments()
@@ -42,3 +42,6 @@ csp = PcaAll()
 
 # from scripts.pca_line import PcaLine
 # esp = PcaLine()
+
+from scripts.parquet_export import ParquetExport
+esp = ParquetExport()
