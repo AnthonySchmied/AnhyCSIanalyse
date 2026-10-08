@@ -4,14 +4,17 @@ from components.phases import Phases
 from components.complex_values import ComplexValues
 from components.metadata_unpack import MetadataUnpack as MDP
 from components.batch import _BatchSesLabel
+
+import pyarrow.parquet as pq
+import pyarrow as pa
 import pandas as pd
 import numpy as np
 import datetime
 import ast
 import re
 
-# FORCE_READ_CSV = True
-FORCE_READ_CSV = False
+FORCE_READ_CSV = True
+# FORCE_READ_CSV = False
 
 DEBUG = False
 
@@ -735,7 +738,47 @@ class Recording(
             idx = append_recording(rec_key, self.get_receivers_name_mac()[1], self.get_senders_name_mac()[1], MDP.days_pack([self.get_date()])[0], MDP.names_pack([self.get_name()])[0], int(self.get_frequencies()[0]), self.get_date(), self.get_time())
             print(idx)
 
+            # print(self.df.keys())
+            # exit()
 
-            
+            try:
+
+                table = pa.table({
+                    "rec_idx": pa.repeat(pa.scalar(idx, type=pa.uint64()), len(self.df)),
+                    "timestamp": pa.Array.from_pandas(pd.to_datetime(self.df["timestamp_pc"], format="ISO8601", errors="raise"), type=pa.timestamp("ns")),
+                    "tx_counter": pa.array(self.df["tx_counter"], type=pa.uint64()),
+                    "rx_counter": pa.array(self.df["rx_counter"], type=pa.uint64()),
+                    "tx_time": pa.array(self.df["tx_time"], type=pa.uint64()),
+                    "rx_time": pa.array(self.df["rx_time"], type=pa.uint64()),
+                    "rssi": pa.array(self.df["rssi"], type=pa.float64()),
+                    "noise_floor": pa.array(self.df["noise_floor"], type=pa.float64()),
+                    "amplitude": pa.array(self.df["amplitude"], type=pa.list_(pa.float64())),
+                    "phase": pa.array(self.df["phase"], type=pa.list_(pa.float64())),
+                    "complex_real": pa.array(
+                        self.df["complex"].apply(lambda x: np.real(x).tolist()).tolist(),
+                        type=pa.list_(pa.float64())
+                    ),
+                    "complex_imag": pa.array(
+                        self.df["complex"].apply(lambda x: np.imag(x).tolist()).tolist(),
+                        type=pa.list_(pa.float64())
+                    ),
+                    # "complex": pa.array(self.df["complex"].apply(lambda x: np.abs(x)).tolist(),type=pa.list_(pa.float64())
+                    # ),
+                })
+
+                pq.write_table(
+                    table,
+                    f"rec_parquet/csi/{rec_key}.parquet",
+                    compression="zstd"
+                )
+
+
+            except Exception as e:
+
+                print(pd.to_datetime(self.df["timestamp_pc"]))
+                print(pa.Array.from_pandas(pd.to_datetime(self.df["timestamp_pc"]), type=pa.timestamp("ns")))
+                raise e
+
+
         else:
             [rec.save_to_parquet_file_if_split(append_recording) for rec in self._subrecordings_split_by_freq]

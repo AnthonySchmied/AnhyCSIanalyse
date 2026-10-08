@@ -15,9 +15,9 @@ class ParquetExport(_SelectBatchMinix):
         self.sc = RecordingSessionCollection(
             [
                 Path("rec/01_recording/"),
-                # Path("rec/02_recording/"),
-                # Path("rec/03_recording/"),
-                # Path("rec/04_recording/"),
+                Path("rec/02_recording/"),
+                Path("rec/03_recording/"),
+                Path("rec/04_recording/"),
             ]
         )
 
@@ -29,7 +29,7 @@ class ParquetExport(_SelectBatchMinix):
             "recording_key": pd.Series(dtype="int64"),
             "label": pd.Series(dtype="str"),
             "sample_frequency": pd.Series(dtype="int64"),
-            "datetime": pd.Series(dtype="datetime64[ns]"),
+            "timestamp": pd.Series(dtype="datetime64[ns]"),
         })
 
         def append_recording(key, receiver_mac, sender_mac, recording_key, label, sample_frequency, date, time):
@@ -40,6 +40,8 @@ class ParquetExport(_SelectBatchMinix):
             ses.save_split_by_frequency_to_parquet_file(append_recording)
            
         print(self.recordings_matadata)
+
+        self.recordings_matadata.to_parquet("rec_parquet/recordings.parquet", index=False)
 
     # def init_parquet(self):
     #     self.con = duckdb.connect()
